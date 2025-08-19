@@ -6,8 +6,7 @@ import {
   HouseholdMember,
   LoginRequest,
   RegisterRequest,
-  User,
-  UserWithHouseholds
+  User
 } from '@/types';
 import React, { createContext, ReactNode, useContext, useEffect, useReducer } from 'react';
 
@@ -42,8 +41,8 @@ function authReducer(state: AuthState, action: AuthAction): AuthState {
         isAuthenticated: true,
         user: action.payload.user,
         token: action.payload.token,
-        households: action.payload.households,
-        activeHousehold: action.payload.households[0] || null,
+        households: action.payload.households || [],
+        activeHousehold: (action.payload.households && action.payload.households[0]) || null,
         isLoading: false,
       };
 
@@ -56,8 +55,8 @@ function authReducer(state: AuthState, action: AuthAction): AuthState {
     case 'SET_HOUSEHOLDS':
       return {
         ...state,
-        households: action.payload,
-        activeHousehold: state.activeHousehold || action.payload[0] || null,
+        households: action.payload || [],
+        activeHousehold: state.activeHousehold || (action.payload && action.payload[0]) || null,
       };
 
     case 'SET_ACTIVE_HOUSEHOLD':
@@ -101,17 +100,38 @@ export function AuthProvider({ children }: AuthProviderProps) {
     try {
       const token = await tokenStorage.getToken();
       if (token) {
+        console.log('Found existing token, verifying...');
         // Verify token and get user data
-        const userData: UserWithHouseholds = await apiClient.get('/me');
-        dispatch({
-          type: 'LOGIN_SUCCESS',
-          payload: {
-            user: userData.user,
-            token,
-            households: userData.households.data,
-          },
-        });
+        try {
+          const userData: any = await apiClient.get('/me');
+          console.log('Auth initialization - user data received:', JSON.stringify(userData, null, 2));
+          
+          const adaptedData = {
+            user: userData?.user || userData,
+            households: userData?.households || []
+          };
+          
+          if (adaptedData.user) {
+            dispatch({
+              type: 'LOGIN_SUCCESS',
+              payload: {
+                user: adaptedData.user,
+                token,
+                households: Array.isArray(adaptedData.households) ? adaptedData.households : [],
+              },
+            });
+          } else {
+            throw new Error('Invalid user data received from /me endpoint');
+          }
+          console.log('Auth initialization successful');
+        } catch (meError) {
+          console.error('Auth initialization - /me failed:', meError);
+          // Clear invalid token
+          await tokenStorage.removeToken();
+          dispatch({ type: 'SET_LOADING', payload: false });
+        }
       } else {
+        console.log('No existing token found');
         dispatch({ type: 'SET_LOADING', payload: false });
       }
     } catch (error) {
@@ -124,23 +144,57 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const login = async (credentials: LoginRequest) => {
     try {
+      console.log('Starting login with credentials:', { email: credentials.email });
       dispatch({ type: 'SET_LOADING', payload: true });
 
+      console.log('Calling login API...');
       const authResponse: AuthResponse = await apiClient.post('/auth/login', credentials);
+      console.log('Login API response received:', authResponse);
+      
       await tokenStorage.setToken(authResponse.token);
+      console.log('Token stored successfully');
 
       // Get full user data with households
-      const userData: UserWithHouseholds = await apiClient.get('/me');
+      console.log('Fetching user data...');
+      try {
+        const userData: any = await apiClient.get('/me'); // Use any temporarily to see the actual structure
+        console.log('User data received (raw):', JSON.stringify(userData, null, 2));
+        
+        // Try to adapt the data to our expected format
+        const adaptedData = {
+          user: userData?.user || userData,
+          households: userData?.households || []
+        };
+        console.log('Adapted user data:', adaptedData);
 
-      dispatch({
-        type: 'LOGIN_SUCCESS',
-        payload: {
-          user: userData.user,
-          token: authResponse.token,
-          households: userData.households.data,
-        },
-      });
+        if (adaptedData.user) {
+          dispatch({
+            type: 'LOGIN_SUCCESS',
+            payload: {
+              user: adaptedData.user,
+              token: authResponse.token,
+              households: Array.isArray(adaptedData.households) ? adaptedData.households : [],
+            },
+          });
+        } else {
+          throw new Error('Invalid user data received from /me endpoint');
+        }
+        console.log('Login successful!');
+      } catch (meError) {
+        console.error('Error fetching /me data:', meError);
+        // If /me fails, we can still log the user in with just the login data
+        dispatch({
+          type: 'LOGIN_SUCCESS',
+          payload: {
+            user: authResponse.user,
+            token: authResponse.token,
+            households: [],
+          },
+        });
+        console.log('Login successful (without /me data)');
+      }
     } catch (error) {
+      console.error('Login failed in AuthContext:', error);
       dispatch({ type: 'SET_LOADING', payload: false });
       throw error;
     }
@@ -148,23 +202,57 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const register = async (userData: RegisterRequest) => {
     try {
+      console.log('Starting registration...');
       dispatch({ type: 'SET_LOADING', payload: true });
 
+      console.log('Calling register API...');
       const authResponse: AuthResponse = await apiClient.post('/auth/register', userData);
+      console.log('Register API response received:', authResponse);
+      
       await tokenStorage.setToken(authResponse.token);
+      console.log('Token stored successfully');
 
       // Get full user data with households (will be empty for new users)
-      const userWithHouseholds: UserWithHouseholds = await apiClient.get('/me');
+      console.log('Fetching user data after registration...');
+      try {
+        const userWithHouseholds: any = await apiClient.get('/me');
+        console.log('User data received (raw):', JSON.stringify(userWithHouseholds, null, 2));
+        
+        // Try to adapt the data to our expected format
+        const adaptedData = {
+          user: userWithHouseholds?.user || userWithHouseholds,
+          households: userWithHouseholds?.households || []
+        };
+        console.log('Adapted user data:', adaptedData);
 
-      dispatch({
-        type: 'LOGIN_SUCCESS',
-        payload: {
-          user: userWithHouseholds.user,
-          token: authResponse.token,
-          households: userWithHouseholds.households.data,
-        },
-      });
+        if (adaptedData.user) {
+          dispatch({
+            type: 'LOGIN_SUCCESS',
+            payload: {
+              user: adaptedData.user,
+              token: authResponse.token,
+              households: Array.isArray(adaptedData.households) ? adaptedData.households : [],
+            },
+          });
+        } else {
+          throw new Error('Invalid user data received from /me endpoint');
+        }
+        console.log('Registration successful!');
+      } catch (meError) {
+        console.error('Error fetching /me data during registration:', meError);
+        // If /me fails, we can still log the user in with just the registration data
+        dispatch({
+          type: 'LOGIN_SUCCESS',
+          payload: {
+            user: authResponse.user,
+            token: authResponse.token,
+            households: [],
+          },
+        });
+        console.log('Registration successful (without /me data)');
+      }
     } catch (error) {
+      console.error('Registration failed in AuthContext:', error);
       dispatch({ type: 'SET_LOADING', payload: false });
       throw error;
     }
@@ -189,9 +277,20 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const refreshUserData = async () => {
     try {
-      const userData: UserWithHouseholds = await apiClient.get('/me');
-      dispatch({ type: 'UPDATE_USER', payload: userData.user });
-      dispatch({ type: 'SET_HOUSEHOLDS', payload: userData.households.data });
+      console.log('Refreshing user data...');
+      const userData: any = await apiClient.get('/me');
+      console.log('Refresh user data received:', JSON.stringify(userData, null, 2));
+      
+      const adaptedData = {
+        user: userData?.user || userData,
+        households: userData?.households || []
+      };
+      
+      if (adaptedData.user) {
+        dispatch({ type: 'UPDATE_USER', payload: adaptedData.user });
+      }
+      dispatch({ type: 'SET_HOUSEHOLDS', payload: Array.isArray(adaptedData.households) ? adaptedData.households : [] });
+      console.log('User data refreshed successfully');
     } catch (error) {
       console.error('Failed to refresh user data:', error);
       throw error;

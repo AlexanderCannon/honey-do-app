@@ -3,7 +3,9 @@ import axios, { AxiosError, AxiosInstance, AxiosResponse } from 'axios';
 import { tokenStorage } from './tokenStorage';
 
 // Configuration
+// Note: For iOS simulator, you might need to use 127.0.0.1 instead of localhost
 const API_BASE_URL = __DEV__ ? 'http://localhost:4000' : 'https://your-production-api.com';
+console.log('API Base URL:', API_BASE_URL);
 const API_VERSION = 'v1';
 const DEFAULT_TIMEOUT = 10000;
 const MAX_RETRIES = 3;
@@ -95,13 +97,41 @@ class ApiClient {
 
   // Generic request methods
   async get<T>(url: string, params?: Record<string, any>): Promise<T> {
-    const response: AxiosResponse<T> = await this.client.get(url, { params });
-    return response.data;
+    console.log('API GET Request:', {
+      url: `${this.client.defaults.baseURL}${url}`,
+      params,
+    });
+    
+    try {
+      const response: AxiosResponse<T> = await this.client.get(url, { params });
+      console.log('API GET Response:', {
+        status: response.status,
+        data: response.data,
+      });
+      return response.data;
+    } catch (error) {
+      console.log('API GET Error:', error);
+      throw error;
+    }
   }
 
   async post<T>(url: string, data?: any): Promise<T> {
-    const response: AxiosResponse<T> = await this.client.post(url, data);
-    return response.data;
+    console.log('API POST Request:', {
+      url: `${this.client.defaults.baseURL}${url}`,
+      data,
+    });
+    
+    try {
+      const response: AxiosResponse<T> = await this.client.post(url, data);
+      console.log('API POST Response:', {
+        status: response.status,
+        data: response.data,
+      });
+      return response.data;
+    } catch (error) {
+      console.log('API POST Error:', error);
+      throw error;
+    }
   }
 
   async patch<T>(url: string, data?: any): Promise<T> {

@@ -23,6 +23,7 @@ export interface HouseholdMember {
   role: 'parent' | 'child';
   status: 'active' | 'inactive';
   user: User;
+  household?: Household; // Optional household data when populated
   created_at: string;
   updated_at: string;
 }

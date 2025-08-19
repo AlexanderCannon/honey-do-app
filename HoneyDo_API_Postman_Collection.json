@@ -1,0 +1,1099 @@
+{
+  "info": {
+    "name": "HoneyDo API",
+    "description": "Complete API collection for the HoneyDo household task management application",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "version": {
+      "major": 1,
+      "minor": 1,
+      "patch": 0
+    }
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:4000",
+      "type": "string"
+    },
+    {
+      "key": "apiUrl",
+      "value": "{{baseUrl}}/api/v1",
+      "type": "string"
+    },
+    {
+      "key": "authToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "householdId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "taskId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "eventId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "userId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "occurrenceId",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{authToken}}",
+        "type": "string"
+      }
+    ]
+  },
+  "item": [
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{apiUrl}}/healthz",
+              "host": ["{{apiUrl}}"],
+              "path": ["healthz"]
+            },
+            "description": "Health check endpoint to verify API status"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Authentication",
+      "item": [
+        {
+          "name": "Register",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    pm.collectionVariables.set('authToken', response.token);",
+                  "    pm.collectionVariables.set('userId', response.user.id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"test@example.com\",\n  \"password\": \"password123\",\n  \"name\": \"Test User\",\n  \"photo_url\": \"https://example.com/photo.jpg\"\n}"
+            },
+            "url": {
+              "raw": "{{apiUrl}}/auth/register",
+              "host": ["{{apiUrl}}"],
+              "path": ["auth", "register"]
+            },
+            "description": "Register a new user account"
+          },
+          "response": []
+        },
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    pm.collectionVariables.set('authToken', response.token);",
+                  "    pm.collectionVariables.set('userId', response.user.id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"test@example.com\",\n  \"password\": \"password123\"\n}"
+            },
+            "url": {
+              "raw": "{{apiUrl}}/auth/login",
+              "host": ["{{apiUrl}}"],
+              "path": ["auth", "login"]
+            },
+            "description": "Login with email and password"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Current User",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{apiUrl}}/me",
+              "host": ["{{apiUrl}}"],
+              "path": ["me"]
+            },
+            "description": "Get current user info and households"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Current User (with pagination)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{apiUrl}}/me?limit=10",
+              "host": ["{{apiUrl}}"],
+              "path": ["me"],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "10"
+                },
+                {
+                  "key": "cursor",
+                  "value": "",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Get current user info and households with pagination"
+          },
+          "response": []
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{apiUrl}}/auth/logout",
+              "host": ["{{apiUrl}}"],
+              "path": ["auth", "logout"]
+            },
+            "description": "Logout current user"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Households",
+      "item": [
+        {
+          "name": "Create Household",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    pm.collectionVariables.set('householdId', response.household.id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Test Household\",\n  \"timezone\": \"America/New_York\"\n}"
+            },
+            "url": {
+              "raw": "{{apiUrl}}/households",
+              "host": ["{{apiUrl}}"],
+              "path": ["households"]
+            },
+            "description": "Create a new household"
+          },
+          "response": []
+        },
+        {
+          "name": "List Families",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{apiUrl}}/households",
+              "host": ["{{apiUrl}}"],
+              "path": ["households"]
+            },
+            "description": "List all households for current user"
+          },
+          "response": []
+        },
+        {
+          "name": "List Families (with pagination)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{apiUrl}}/households?limit=10",
+              "host": ["{{apiUrl}}"],
+              "path": ["households"],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "10"
+                },
+                {
+                  "key": "cursor",
+                  "value": "",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "List households with pagination"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Household",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{apiUrl}}/households/{{householdId}}",
+              "host": ["{{apiUrl}}"],
+              "path": ["households", "{{householdId}}"]
+            },
+            "description": "Get specific household details"
+          },
+          "response": []
+        },
+        {
+          "name": "Update Household",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Updated Household Name\",\n  \"timezone\": \"America/Los_Angeles\"\n}"
+            },
+            "url": {
+              "raw": "{{apiUrl}}/households/{{householdId}}",
+              "host": ["{{apiUrl}}"],
+              "path": ["households", "{{householdId}}"]
+            },
+            "description": "Update household details"
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Household",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{apiUrl}}/households/{{householdId}}",
+              "host": ["{{apiUrl}}"],
+              "path": ["households", "{{householdId}}"]
+            },
+            "description": "Delete a household"
+          },
+          "response": []
+        },
+        {
+          "name": "List Household Members",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{apiUrl}}/households/{{householdId}}/members",
+              "host": ["{{apiUrl}}"],
+              "path": ["households", "{{householdId}}", "members"]
+            },
+            "description": "List all members of a household"
+          },
+          "response": []
+        },
+        {
+          "name": "List Household Members (with pagination)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{apiUrl}}/households/{{householdId}}/members?limit=10",
+              "host": ["{{apiUrl}}"],
+              "path": ["households", "{{householdId}}", "members"],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "10"
+                },
+                {
+                  "key": "cursor",
+                  "value": "",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "List household members with pagination"
+          },
+          "response": []
+        },
+        {
+          "name": "Update Household Member",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"role\": \"child\",\n  \"status\": \"active\"\n}"
+            },
+            "url": {
+              "raw": "{{apiUrl}}/households/{{householdId}}/members/{{userId}}",
+              "host": ["{{apiUrl}}"],
+              "path": ["households", "{{householdId}}", "members", "{{userId}}"]
+            },
+            "description": "Update a household member's role or status"
+          },
+          "response": []
+        },
+        {
+          "name": "Remove Household Member",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{apiUrl}}/households/{{householdId}}/members/{{userId}}",
+              "host": ["{{apiUrl}}"],
+              "path": ["households", "{{householdId}}", "members", "{{userId}}"]
+            },
+            "description": "Remove a member from the household"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Invites",
+      "item": [
+        {
+          "name": "Create Invite",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"invited_email\": \"newmember@example.com\"\n}"
+            },
+            "url": {
+              "raw": "{{apiUrl}}/households/{{householdId}}/invites",
+              "host": ["{{apiUrl}}"],
+              "path": ["households", "{{householdId}}", "invites"]
+            },
+            "description": "Create an invitation to join the household"
+          },
+          "response": []
+        },
+        {
+          "name": "Preview Invite",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{apiUrl}}/invites/INVITE_CODE_HERE",
+              "host": ["{{apiUrl}}"],
+              "path": ["invites", "INVITE_CODE_HERE"]
+            },
+            "description": "Preview invite details without authentication"
+          },
+          "response": []
+        },
+        {
+          "name": "Accept Invite",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{apiUrl}}/invites/INVITE_CODE_HERE/accept",
+              "host": ["{{apiUrl}}"],
+              "path": ["invites", "INVITE_CODE_HERE", "accept"]
+            },
+            "description": "Accept an invitation to join the household"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Tasks",
+      "item": [
+        {
+          "name": "List Tasks",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{apiUrl}}/households/{{householdId}}/tasks",
+              "host": ["{{apiUrl}}"],
+              "path": ["households", "{{householdId}}", "tasks"]
+            },
+            "description": "List all tasks for a household"
+          },
+          "response": []
+        },
+        {
+          "name": "List Tasks (with pagination)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{apiUrl}}/households/{{householdId}}/tasks?limit=10",
+              "host": ["{{apiUrl}}"],
+              "path": ["households", "{{householdId}}", "tasks"],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "10"
+                },
+                {
+                  "key": "cursor",
+                  "value": "",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "List tasks with pagination"
+          },
+          "response": []
+        },
+        {
+          "name": "Create Task",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    pm.collectionVariables.set('taskId', response.task.id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Take out trash\",\n  \"description\": \"Weekly trash collection\",\n  \"assigned_to\": \"{{userId}}\",\n  \"rrule\": \"FREQ=WEEKLY;BYDAY=TU\",\n  \"due_time\": \"07:00\",\n  \"grace_hours\": 2\n}"
+            },
+            "url": {
+              "raw": "{{apiUrl}}/households/{{householdId}}/tasks",
+              "host": ["{{apiUrl}}"],
+              "path": ["households", "{{householdId}}", "tasks"]
+            },
+            "description": "Create a new task"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Task",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{apiUrl}}/tasks/{{taskId}}",
+              "host": ["{{apiUrl}}"],
+              "path": ["tasks", "{{taskId}}"]
+            },
+            "description": "Get specific task details"
+          },
+          "response": []
+        },
+        {
+          "name": "Update Task",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Updated task title\",\n  \"description\": \"Updated description\",\n  \"assigned_to\": \"{{userId}}\",\n  \"rrule\": \"FREQ=WEEKLY;BYDAY=WE\",\n  \"due_time\": \"08:00\",\n  \"grace_hours\": 3\n}"
+            },
+            "url": {
+              "raw": "{{apiUrl}}/tasks/{{taskId}}",
+              "host": ["{{apiUrl}}"],
+              "path": ["tasks", "{{taskId}}"]
+            },
+            "description": "Update task details"
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Task",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{apiUrl}}/tasks/{{taskId}}",
+              "host": ["{{apiUrl}}"],
+              "path": ["tasks", "{{taskId}}"]
+            },
+            "description": "Delete a task"
+          },
+          "response": []
+        },
+        {
+          "name": "Pause Task",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{apiUrl}}/tasks/{{taskId}}/pause",
+              "host": ["{{apiUrl}}"],
+              "path": ["tasks", "{{taskId}}", "pause"]
+            },
+            "description": "Pause a task (stops generating new occurrences)"
+          },
+          "response": []
+        },
+        {
+          "name": "Resume Task",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{apiUrl}}/tasks/{{taskId}}/resume",
+              "host": ["{{apiUrl}}"],
+              "path": ["tasks", "{{taskId}}", "resume"]
+            },
+            "description": "Resume a paused task"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Task Occurrences",
+      "item": [
+        {
+          "name": "List Task Occurrences",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    if (response.occurrences && response.occurrences.length > 0) {",
+                  "        pm.collectionVariables.set('occurrenceId', response.occurrences[0].id);",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{apiUrl}}/households/{{householdId}}/task-occurrences",
+              "host": ["{{apiUrl}}"],
+              "path": ["households", "{{householdId}}", "task-occurrences"]
+            },
+            "description": "List all task occurrences for a household"
+          },
+          "response": []
+        },
+        {
+          "name": "List Task Occurrences (with pagination)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{apiUrl}}/households/{{householdId}}/task-occurrences?limit=10",
+              "host": ["{{apiUrl}}"],
+              "path": ["households", "{{householdId}}", "task-occurrences"],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "10"
+                },
+                {
+                  "key": "cursor",
+                  "value": "",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "List task occurrences with pagination"
+          },
+          "response": []
+        },
+        {
+          "name": "Complete Task Occurrence",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": {
+              "raw": "{{apiUrl}}/task-occurrences/{{occurrenceId}}/complete",
+              "host": ["{{apiUrl}}"],
+              "path": ["task-occurrences", "{{occurrenceId}}", "complete"]
+            },
+            "description": "Mark a task occurrence as completed"
+          },
+          "response": []
+        },
+        {
+          "name": "Reopen Task Occurrence",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": {
+              "raw": "{{apiUrl}}/task-occurrences/{{occurrenceId}}/reopen",
+              "host": ["{{apiUrl}}"],
+              "path": ["task-occurrences", "{{occurrenceId}}", "reopen"]
+            },
+            "description": "Reopen a completed task occurrence"
+          },
+          "response": []
+        },
+        {
+          "name": "Reassign Task Occurrence",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"assigned_to\": \"{{userId}}\"\n}"
+            },
+            "url": {
+              "raw": "{{apiUrl}}/task-occurrences/{{occurrenceId}}/reassign",
+              "host": ["{{apiUrl}}"],
+              "path": ["task-occurrences", "{{occurrenceId}}", "reassign"]
+            },
+            "description": "Reassign a task occurrence to another user"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Events",
+      "item": [
+        {
+          "name": "List Events",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{apiUrl}}/households/{{householdId}}/events?from=2024-01-01T00:00:00Z&to=2024-12-31T23:59:59Z",
+              "host": ["{{apiUrl}}"],
+              "path": ["households", "{{householdId}}", "events"],
+              "query": [
+                {
+                  "key": "from",
+                  "value": "2024-01-01T00:00:00Z"
+                },
+                {
+                  "key": "to",
+                  "value": "2024-12-31T23:59:59Z"
+                }
+              ]
+            },
+            "description": "List events for a household within a date range"
+          },
+          "response": []
+        },
+        {
+          "name": "List Events (with pagination)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{apiUrl}}/households/{{householdId}}/events?from=2024-01-01T00:00:00Z&to=2024-12-31T23:59:59Z&limit=10",
+              "host": ["{{apiUrl}}"],
+              "path": ["households", "{{householdId}}", "events"],
+              "query": [
+                {
+                  "key": "from",
+                  "value": "2024-01-01T00:00:00Z"
+                },
+                {
+                  "key": "to",
+                  "value": "2024-12-31T23:59:59Z"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                },
+                {
+                  "key": "cursor",
+                  "value": "",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "List events with pagination"
+          },
+          "response": []
+        },
+        {
+          "name": "Create Event",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    pm.collectionVariables.set('eventId', response.event.id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Household Meeting\",\n  \"description\": \"Weekly household planning meeting\",\n  \"starts_at\": \"2024-01-15T19:00:00Z\",\n  \"ends_at\": \"2024-01-15T20:00:00Z\",\n  \"type\": \"meeting\",\n  \"rrule\": \"FREQ=WEEKLY;BYDAY=SU\"\n}"
+            },
+            "url": {
+              "raw": "{{apiUrl}}/households/{{householdId}}/events",
+              "host": ["{{apiUrl}}"],
+              "path": ["households", "{{householdId}}", "events"]
+            },
+            "description": "Create a new event"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Event",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{apiUrl}}/events/{{eventId}}",
+              "host": ["{{apiUrl}}"],
+              "path": ["events", "{{eventId}}"]
+            },
+            "description": "Get specific event details"
+          },
+          "response": []
+        },
+        {
+          "name": "Update Event",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Updated Household Meeting\",\n  \"description\": \"Updated weekly household planning meeting\",\n  \"starts_at\": \"2024-01-15T18:00:00Z\",\n  \"ends_at\": \"2024-01-15T19:00:00Z\",\n  \"type\": \"meeting\",\n  \"rrule\": \"FREQ=WEEKLY;BYDAY=SU\"\n}"
+            },
+            "url": {
+              "raw": "{{apiUrl}}/events/{{eventId}}",
+              "host": ["{{apiUrl}}"],
+              "path": ["events", "{{eventId}}"]
+            },
+            "description": "Update event details"
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Event",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{apiUrl}}/events/{{eventId}}",
+              "host": ["{{apiUrl}}"],
+              "path": ["events", "{{eventId}}"]
+            },
+            "description": "Delete an event"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Notifications",
+      "item": [
+        {
+          "name": "Register Device Token",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"device_push_token_here\",\n  \"platform\": \"ios\"\n}"
+            },
+            "url": {
+              "raw": "{{apiUrl}}/me/device-tokens",
+              "host": ["{{apiUrl}}"],
+              "path": ["me", "device-tokens"]
+            },
+            "description": "Register a device token for push notifications"
+          },
+          "response": []
+        },
+        {
+          "name": "Test Notification",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{apiUrl}}/notify/test",
+              "host": ["{{apiUrl}}"],
+              "path": ["notify", "test"]
+            },
+            "description": "Send a test push notification to the current user"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Points",
+      "item": [
+        {
+          "name": "Get User Points",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{apiUrl}}/users/{{userId}}/points",
+              "host": ["{{apiUrl}}"],
+              "path": ["users", "{{userId}}", "points"]
+            },
+            "description": "Get total points for a specific user"
+          },
+          "response": []
+        },
+        {
+          "name": "Get User Stats",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{apiUrl}}/users/{{userId}}/stats?household_id={{householdId}}",
+              "host": ["{{apiUrl}}"],
+              "path": ["users", "{{userId}}", "stats"],
+              "query": [
+                {
+                  "key": "household_id",
+                  "value": "{{householdId}}"
+                }
+              ]
+            },
+            "description": "Get user statistics including points, level, and recent activity for a specific household"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Household Leaderboard",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{apiUrl}}/households/{{householdId}}/leaderboard",
+              "host": ["{{apiUrl}}"],
+              "path": ["households", "{{householdId}}", "leaderboard"]
+            },
+            "description": "Get points leaderboard for a household"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Household Leaderboard (with pagination)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{apiUrl}}/households/{{householdId}}/leaderboard?limit=10&cursor=0",
+              "host": ["{{apiUrl}}"],
+              "path": ["households", "{{householdId}}", "leaderboard"],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "10"
+                },
+                {
+                  "key": "cursor",
+                  "value": "0"
+                }
+              ]
+            },
+            "description": "Get paginated points leaderboard for a household"
+          },
+          "response": []
+        },
+        {
+          "name": "Get User Points History",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{apiUrl}}/users/{{userId}}/points-history?household_id={{householdId}}",
+              "host": ["{{apiUrl}}"],
+              "path": ["users", "{{userId}}", "points-history"],
+              "query": [
+                {
+                  "key": "household_id",
+                  "value": "{{householdId}}"
+                }
+              ]
+            },
+            "description": "Get points transaction history for a user in a specific household"
+          },
+          "response": []
+        },
+        {
+          "name": "Get User Points History (with pagination)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{apiUrl}}/users/{{userId}}/points-history?household_id={{householdId}}&limit=20&cursor=0",
+              "host": ["{{apiUrl}}"],
+              "path": ["users", "{{userId}}", "points-history"],
+              "query": [
+                {
+                  "key": "household_id",
+                  "value": "{{householdId}}"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                },
+                {
+                  "key": "cursor",
+                  "value": "0"
+                }
+              ]
+            },
+            "description": "Get paginated points transaction history for a user in a specific household"
+          },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [""]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [""]
+      }
+    }
+  ]
+}

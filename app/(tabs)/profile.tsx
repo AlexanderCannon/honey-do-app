@@ -1,39 +1,30 @@
 import { Button, Card, Header, Screen } from '@/components/ui/common';
 import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/contexts/ToastContext';
+import { showConfirmationAlert } from '@/lib/alertHelpers';
 import { router } from 'expo-router';
 import React from 'react';
-import { Alert, StyleSheet, Text } from 'react-native';
+import { StyleSheet, Text } from 'react-native';
 
 export default function ProfileScreen() {
-  const { user, activeHousehold, households, logout, setActiveHousehold, getActiveHouseholdName } = useAuth();
+  const { user, activeHousehold, households, logout, getActiveHouseholdName } = useAuth();
+  const { showSuccess } = useToast();
 
   const handleLogout = () => {
-    Alert.alert(
+    showConfirmationAlert(
       'Sign Out',
       'Are you sure you want to sign out?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Sign Out', style: 'destructive', onPress: logout },
-      ]
+      logout,
+      { confirmText: 'Sign Out', destructive: true }
     );
   };
 
   const handleSwitchHousehold = () => {
     if (households.length <= 1) return;
-
-    const householdOptions = households.map((h, index) => ({
-      text: h.name || `Household ${index + 1}`,
-      onPress: () => setActiveHousehold(h),
-    }));
-
-    Alert.alert(
-      'Switch Household',
-      'Select a household:',
-      [
-        ...householdOptions,
-        { text: 'Cancel', style: 'cancel' },
-      ]
-    );
+    
+    // Redirect to household management where switching is now handled with better UX
+    showSuccess('Switch Households', 'Use Household Management to switch between households');
+    router.push('/household-management');
   };
 
   const goToHouseholdManagement = () => {
@@ -166,6 +157,6 @@ const styles = StyleSheet.create({
   },
   logoutButton: {
     marginTop: 24,
-    marginBottom: 40,
+    marginBottom: 80,
   },
 });

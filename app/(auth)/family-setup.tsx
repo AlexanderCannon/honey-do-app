@@ -1,21 +1,23 @@
 import { Button, Card, Header, Input, Screen } from '@/components/ui/common';
 import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/contexts/ToastContext';
 import { householdService } from '@/services/householdService';
 import { router } from 'expo-router';
 import React, { useState } from 'react';
-import { Alert, StyleSheet, Text } from 'react-native';
+import { StyleSheet, Text } from 'react-native';
 
 export default function FamilySetupScreen() {
   const [mode, setMode] = useState<'choose' | 'create' | 'join'>('choose');
   const [householdName, setHouseholdName] = useState('');
   const [inviteCode, setInviteCode] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  
+    const [isLoading, setIsLoading] = useState(false);
+
   const { refreshUserData } = useAuth();
+  const { showError } = useToast();
 
   const handleCreateHousehold = async () => {
     if (!householdName.trim()) {
-      Alert.alert('Error', 'Please enter a household name');
+      showError('Missing Name', 'Please enter a household name');
       return;
     }
 
@@ -37,7 +39,7 @@ export default function FamilySetupScreen() {
       router.replace('/(tabs)');
     } catch (error: any) {
       console.error('Create household error:', error);
-      Alert.alert(
+      showError(
         'Failed to Create Household',
         error.message || 'An error occurred while creating your household'
       );
@@ -48,7 +50,7 @@ export default function FamilySetupScreen() {
 
   const handleJoinHousehold = async () => {
     if (!inviteCode.trim()) {
-      Alert.alert('Error', 'Please enter an invite code');
+      showError('Missing Code', 'Please enter an invite code');
       return;
     }
 
@@ -63,7 +65,7 @@ export default function FamilySetupScreen() {
       router.replace('/(tabs)');
     } catch (error: any) {
       console.error('Join household error:', error);
-      Alert.alert(
+      showError(
         'Failed to Join Household',
         error.message || 'Invalid invite code or invitation has expired'
       );

@@ -1,8 +1,9 @@
 import { Button, Divider, Header, Input, Screen } from '@/components/ui/common';
 import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/contexts/ToastContext';
 import { router } from 'expo-router';
 import React, { useState } from 'react';
-import { Alert, StyleSheet, Text } from 'react-native';
+import { StyleSheet, Text } from 'react-native';
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
@@ -10,6 +11,7 @@ export default function LoginScreen() {
   const [isLoading, setIsLoading] = useState(false);
 
   const { login } = useAuth();
+  const { showSuccess, showError } = useToast();
 
   const testApiConnection = async () => {
     try {
@@ -17,10 +19,10 @@ export default function LoginScreen() {
       const response = await fetch('http://localhost:4000/api/v1/healthz');
       const data = await response.text();
       console.log('Health check response:', data);
-      Alert.alert('API Test', `API Response: ${data}`);
+      showSuccess('API Connected', `Server response: ${data}`);
     } catch (error: any) {
       console.error('API test failed:', error);
-      Alert.alert('API Test Failed', 'Could not connect to localhost:4000');
+      showError('API Test Failed', 'Could not connect to localhost:4000');
     } finally {
       setIsLoading(false);
     }
@@ -57,14 +59,11 @@ export default function LoginScreen() {
         const meData = await meResponse.text();
         console.log('Me response data:', meData);
 
-        Alert.alert(
-          'Me Endpoint Test',
-          `Status: ${meResponse.status}\nResponse: ${meData.substring(0, 200)}...`
-        );
+        showSuccess('Me Endpoint Test', `Status: ${meResponse.status}`);
       }
     } catch (error: any) {
       console.error('Me endpoint test failed:', error);
-      Alert.alert('Me Endpoint Test Failed', error.toString());
+      showError('Me Endpoint Test Failed', error.toString());
     } finally {
       setIsLoading(false);
     }
@@ -72,7 +71,7 @@ export default function LoginScreen() {
 
   const handleLogin = async () => {
     if (!email || !password) {
-      Alert.alert('Error', 'Please fill in all fields');
+      showError('Missing Fields', 'Please fill in all fields');
       return;
     }
 
@@ -82,9 +81,9 @@ export default function LoginScreen() {
       // Navigation will be handled automatically by the auth state change
     } catch (error: any) {
       console.error('Login error:', error);
-      Alert.alert(
+      showError(
         'Login Failed',
-        `${error.message || 'An error occurred during login'}\n\nCode: ${error.code || 'unknown'}`
+        error.message || 'An error occurred during login'
       );
     } finally {
       setIsLoading(false);

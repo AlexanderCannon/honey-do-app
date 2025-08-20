@@ -1,12 +1,15 @@
 import { Button, Card, Header, Screen } from '@/components/ui/common';
 import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/contexts/ToastContext';
+import { showConfirmationAlert } from '@/lib/alertHelpers';
 import { householdService } from '@/services/householdService';
 import { router } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
-import { Alert, StyleSheet, Text } from 'react-native';
+import { StyleSheet, Text } from 'react-native';
 
 export default function HouseholdManagementScreen() {
   const { activeHousehold, households, leaveHousehold, deleteHousehold, setActiveHousehold, refreshUserData, isParent } = useAuth();
+  const { showSuccess, showError } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [memberCount, setMemberCount] = useState<number | null>(null);
 
@@ -46,31 +49,27 @@ export default function HouseholdManagementScreen() {
 
   const handleLeaveHousehold = () => {
     if (!getHouseholdId(activeHousehold)) {
-      Alert.alert('Error', 'No active household to leave');
+      showError('Cannot Leave', 'No active household to leave');
       return;
     }
 
     // Safety check: don't allow leaving if you're the only member
     if (memberCount === 1) {
-      Alert.alert(
+      showError(
         'Cannot Leave Household',
-        'You cannot leave this household because you are the only member. Please delete the household instead or invite other members first.',
-        [{ text: 'OK' }]
+        'You cannot leave this household because you are the only member. Please delete the household instead or invite other members first.'
       );
       return;
     }
 
-    Alert.alert(
-      '⚠️ Leave Household',
+    showConfirmationAlert(
+      'Leave Household',
       `Are you sure you want to leave "${getHouseholdName(activeHousehold)}"?\n\nThis action cannot be undone. You'll need a new invite to rejoin.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Leave Household',
-          style: 'destructive',
-          onPress: confirmLeaveHousehold,
-        },
-      ]
+      confirmLeaveHousehold,
+      {
+        confirmText: 'Leave Household',
+        destructive: true,
+      }
     );
   };
 
@@ -81,15 +80,15 @@ export default function HouseholdManagementScreen() {
     setIsLoading(true);
     try {
       await leaveHousehold(householdId);
-      Alert.alert(
-        '✅ Left Household',
-        'You have successfully left the household. You can now create a new household or join another one.',
-        [{ text: 'OK', onPress: () => router.replace('/(auth)/family-setup') }]
+      showSuccess(
+        'Left Household',
+        'You have successfully left the household. You can now create a new household or join another one.'
       );
+      router.replace('/(auth)/family-setup');
     } catch (error: any) {
       console.error('Leave household error:', error);
-      Alert.alert(
-        'Error',
+      showError(
+        'Leave Failed',
         error.message || 'Failed to leave household. Please try again.'
       );
     } finally {
@@ -99,26 +98,23 @@ export default function HouseholdManagementScreen() {
 
   const handleDeleteHousehold = () => {
     if (!getHouseholdId(activeHousehold)) {
-      Alert.alert('Error', 'No active household to delete');
+      showError('Cannot Delete', 'No active household to delete');
       return;
     }
 
     if (!isParent) {
-      Alert.alert('Error', 'Only parents can delete households');
+      showError('Permission Denied', 'Only parents can delete households');
       return;
     }
 
-    Alert.alert(
+    showConfirmationAlert(
       '🚨 Delete Household',
       `Are you sure you want to permanently delete "${getHouseholdName(activeHousehold)}"?\n\n⚠️ This will:\n• Delete ALL household data\n• Remove ALL members\n• Delete ALL tasks and events\n• This action CANNOT be undone`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete Forever',
-          style: 'destructive',
-          onPress: confirmDeleteHousehold,
-        },
-      ]
+      confirmDeleteHousehold,
+      {
+        confirmText: 'Delete Forever',
+        destructive: true,
+      }
     );
   };
 
@@ -133,16 +129,16 @@ export default function HouseholdManagementScreen() {
         await householdService.getHousehold(householdId);
       } catch (getError: any) {
         console.error('Household verification failed:', getError);
-        Alert.alert('Error', 'Cannot find household to delete. It may have already been deleted.');
+        showError('Cannot Delete Household', 'Household not found. It may have already been deleted.');
         return;
       }
 
       // Now try to delete it
       await deleteHousehold(householdId);
       await handlePostDeletionFlow();
-        } catch (error: any) {
+    } catch (error: any) {
       console.error('Delete household error:', error);
-      
+
       // More detailed error handling
       let errorMessage = 'Failed to delete household';
       if (error?.code === '404') {
@@ -152,8 +148,8 @@ export default function HouseholdManagementScreen() {
       } else if (error?.message) {
         errorMessage = error.message;
       }
-      
-      Alert.alert('Error', errorMessage);
+
+      showError('Delete Failed', errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -167,11 +163,11 @@ export default function HouseholdManagementScreen() {
     try {
       setIsLoading(true);
       await setActiveHousehold(household);
-      Alert.alert('Success', `Switched to "${getHouseholdName(household)}"`);
+      showSuccess('Household Switched', `Now using "${getHouseholdName(household)}"`);
       router.back();
     } catch (error: any) {
       console.error('Switch household error:', error);
-      Alert.alert('Error', 'Failed to switch household');
+      showError('Switch Failed', 'Failed to switch household');
     } finally {
       setIsLoading(false);
     }
@@ -197,17 +193,17 @@ export default function HouseholdManagementScreen() {
       const shouldHaveRemaining = originalCount > 1;
 
       if (shouldHaveRemaining) {
-        Alert.alert(
-          '✅ Success',
-          'Household removed successfully. You have been switched to your remaining household.',
-          [{ text: 'OK', onPress: () => router.back() }]
+        showSuccess(
+          'Household Removed',
+          'You have been switched to your remaining household.'
         );
+        router.back();
       } else {
-        Alert.alert(
-          '✅ Success',
-          'Household removed successfully. You can now create a new household or join another one.',
-          [{ text: 'OK', onPress: () => router.replace('/(auth)/family-setup') }]
+        showSuccess(
+          'Household Removed',
+          'You can now create a new household or join another one.'
         );
+        router.replace('/(auth)/family-setup');
       }
     } catch (error) {
       console.error('Error refreshing data after deletion:', error);

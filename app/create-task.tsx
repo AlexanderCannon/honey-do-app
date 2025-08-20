@@ -17,7 +17,7 @@ export default function CreateTaskScreen() {
 
   const handleCreateTask = async (taskData: CreateTaskRequest) => {
     if (!householdId) {
-      showError('No Household', 'Please select a household first.');
+      showError('No Household', 'Please select a household first. If you just registered, please complete the family setup process.');
       return;
     }
 
@@ -47,10 +47,10 @@ export default function CreateTaskScreen() {
 
   return (
     <Screen style={styles.container}>
-      <Header 
+      <Header
         title="Create Task"
       />
-      
+
       <TaskForm
         onSubmit={handleCreateTask}
         onCancel={handleCancel}

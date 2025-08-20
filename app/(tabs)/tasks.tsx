@@ -31,7 +31,7 @@ export default function TasksScreen() {
 
     try {
       let response;
-      
+
       switch (selectedFilter) {
         case 'my-tasks':
           console.log(`Calling getMyTaskOccurrences for user ${user?.id}`);
@@ -55,12 +55,12 @@ export default function TasksScreen() {
           response = await taskService.getTaskOccurrences(householdId);
           break;
       }
-      
+
       console.log('Task occurrences API response:', response);
       const taskData = response.data;
       console.log('Extracted task data:', taskData);
       console.log('Task data length:', Array.isArray(taskData) ? taskData.length : 'not array');
-      
+
       setTaskOccurrences(Array.isArray(taskData) ? taskData : []);
     } catch (error: any) {
       console.error('Failed to load task occurrences:', error);
@@ -157,11 +157,11 @@ export default function TasksScreen() {
         No Tasks Yet
       </Text>
       <Text style={styles.emptyStateSubtext}>
-        {selectedFilter === 'my-tasks' 
+        {selectedFilter === 'my-tasks'
           ? "You don't have any assigned tasks yet."
           : `No ${selectedFilter} tasks found.`}
         {'\n\n'}
-        {isParent 
+        {isParent
           ? "Create your first task to get started with organizing your household!"
           : "Tasks will appear here when they're assigned to you."}
       </Text>

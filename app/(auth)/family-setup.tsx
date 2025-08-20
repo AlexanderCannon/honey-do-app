@@ -30,11 +30,15 @@ export default function FamilySetupScreen() {
       });
       console.log('Household created successfully:', createResponse);
       
-      // Refresh user data to get the new household
+      // Refresh user data to get the new household and auto-select it as active
       console.log('Refreshing user data after household creation...');
       await refreshUserData();
-      console.log('User data refreshed, navigating to main app...');
+      console.log('User data refreshed successfully');
       
+      // Small delay to ensure state is fully updated
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      console.log('Navigating to main app...');
       // Navigate to main app
       router.replace('/(tabs)');
     } catch (error: any) {
@@ -56,11 +60,19 @@ export default function FamilySetupScreen() {
 
     setIsLoading(true);
     try {
+      console.log('Joining household with invite code:', inviteCode.trim());
       await householdService.acceptInvite(inviteCode.trim());
+      console.log('Successfully joined household');
       
-      // Refresh user data to get the new household
+      // Refresh user data to get the new household and auto-select it as active
+      console.log('Refreshing user data after joining household...');
       await refreshUserData();
+      console.log('User data refreshed successfully');
       
+      // Small delay to ensure state is fully updated
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      console.log('Navigating to main app...');
       // Navigate to main app
       router.replace('/(tabs)');
     } catch (error: any) {

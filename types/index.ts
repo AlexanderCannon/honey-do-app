@@ -121,6 +121,22 @@ export interface PhoenixOccurrencesResponse {
   limit?: number;
 }
 
+export interface PhoenixMembersResponse {
+  members: PhoenixMember[];
+  next_cursor?: string;
+  limit?: number;
+}
+
+// What the backend actually returns for members
+export interface PhoenixMember {
+  id: string;           // user ID
+  email: string;
+  name: string | null;  // can be null
+  photo_url: string | null;  // can be null
+  role: 'parent' | 'child';
+  status: 'active' | 'invited';
+}
+
 export interface UserWithHouseholds {
   user: User;
   households: HouseholdMembership[]; // API returns simple array, not paginated response

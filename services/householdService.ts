@@ -6,6 +6,8 @@ import {
   HouseholdMember,
   Invite,
   PaginatedResponse,
+  PhoenixMembersResponse,
+  PhoenixMember,
 } from '@/types';
 
 export const householdService = {
@@ -31,8 +33,14 @@ export const householdService = {
   },
 
   // Member management
-  async getMembers(householdId: string, params?: { limit?: number; cursor?: string }): Promise<PaginatedResponse<HouseholdMember>> {
-    return apiClient.get(`/households/${householdId}/members`, params);
+  async getMembers(householdId: string, params?: { limit?: number; cursor?: string }): Promise<PaginatedResponse<PhoenixMember>> {
+    const phoenixResponse = await apiClient.get<PhoenixMembersResponse>(`/households/${householdId}/members`, params);
+    
+    return {
+      data: phoenixResponse.members,
+      has_more: !!phoenixResponse.next_cursor,
+      cursor: phoenixResponse.next_cursor,
+    };
   },
 
   async updateMember(householdId: string, userId: string, memberData: { role?: 'parent' | 'child'; status?: 'active' | 'inactive' }): Promise<{ member: HouseholdMember }> {

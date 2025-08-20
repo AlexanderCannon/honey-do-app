@@ -2,7 +2,7 @@ import { Button, Input } from '@/components/ui/common';
 import { Colors } from '@/constants/Colors';
 import { useAuth } from '@/contexts/AuthContext';
 import { useColorScheme } from '@/hooks/useColorScheme';
-import { CreateTaskRequest } from '@/types';
+import { CreateTaskRequest, PhoenixMember } from '@/types';
 import { householdService } from '@/services/householdService';
 import React, { useState, useEffect } from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
@@ -57,17 +57,19 @@ export function TaskForm({
 
       try {
         const response = await householdService.getMembers(activeHousehold.id);
-        const members = response.data || [];
+        const members: PhoenixMember[] = response.data || [];
 
         setHouseholdMembers([
           { id: '', name: 'Anyone' },
           ...members.map(member => ({
-            id: (member as any).user_id || member.id,
-            name: (member as any).name || (member as any).display_name || 'Unknown Member',
+            id: member.id,  // Backend returns user ID directly as 'id'
+            name: member.id === user?.id ? 'Me' : (member.name || member.email || 'Unknown Member'),
           })),
         ]);
       } catch (error) {
-        console.warn('Failed to load household members:', error);
+        console.error('Failed to load household members:', error);
+        console.error('Household ID:', activeHousehold.id);
+        console.error('User ID:', user?.id);
         // Fallback to basic options
         setHouseholdMembers([
           { id: '', name: 'Anyone' },
@@ -509,46 +511,149 @@ export function TaskForm({
           {/* Monthly Options */}
           {recurrenceType === 'monthly' && (
             <View style={styles.optionsContainer}>
-              <View style={styles.intervalRow}>
-                <Text style={[styles.intervalLabel, { color: colors.text + '80' }]}>Day</Text>
-                <Input
-                  value={monthlyDayOfMonth.toString()}
-                  onChangeText={(value) => setMonthlyDayOfMonth(Math.min(31, Math.max(1, parseInt(value) || 1)))}
-                  keyboardType="numeric"
-                  style={styles.intervalInput}
-                />
-                <Text style={[styles.intervalLabel, { color: colors.text + '80' }]}>of every</Text>
-                <Input
-                  value={monthlyInterval.toString()}
-                  onChangeText={(value) => setMonthlyInterval(parseInt(value) || 1)}
-                  keyboardType="numeric"
-                  style={styles.intervalInput}
-                />
-                <Text style={[styles.intervalLabel, { color: colors.text + '80' }]}>
-                  {monthlyInterval === 1 ? 'month' : 'months'}
-                </Text>
+              <Text style={[styles.optionsLabel, { color: colors.text + '80' }]}>
+                Day of month:
+              </Text>
+              
+              {/* Day of Month Grid */}
+              <View style={styles.monthDaysGrid}>
+                {Array.from({ length: 31 }, (_, i) => i + 1).map((day) => (
+                  <TouchableOpacity
+                    key={day}
+                    style={[
+                      styles.monthDayOption,
+                      {
+                        backgroundColor: monthlyDayOfMonth === day
+                          ? colors.tint
+                          : colors.background,
+                        borderColor: monthlyDayOfMonth === day
+                          ? colors.tint
+                          : colors.text + '30',
+                      },
+                    ]}
+                    onPress={() => setMonthlyDayOfMonth(day)}
+                  >
+                    <Text
+                      style={[
+                        styles.monthDayText,
+                        {
+                          color: monthlyDayOfMonth === day
+                            ? 'white'
+                            : colors.text,
+                        },
+                      ]}
+                    >
+                      {day}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
               </View>
+
+              {/* Interval Selection */}
+              {monthlyInterval > 1 && (
+                <View style={styles.intervalRow}>
+                  <Text style={[styles.intervalLabel, { color: colors.text + '80' }]}>Every</Text>
+                  <Input
+                    value={monthlyInterval.toString()}
+                    onChangeText={(value) => setMonthlyInterval(parseInt(value) || 1)}
+                    keyboardType="numeric"
+                    style={styles.intervalInput}
+                  />
+                  <Text style={[styles.intervalLabel, { color: colors.text + '80' }]}>months</Text>
+                </View>
+              )}
+              
+              <TouchableOpacity 
+                style={styles.intervalToggle} 
+                onPress={() => setMonthlyInterval(monthlyInterval === 1 ? 2 : 1)}
+              >
+                <Text style={[styles.intervalToggleText, { color: colors.tint }]}>
+                  {monthlyInterval === 1 ? 'Change to every few months' : 'Change to every month'}
+                </Text>
+              </TouchableOpacity>
             </View>
           )}
 
           {/* Yearly Options */}
           {recurrenceType === 'yearly' && (
             <View style={styles.optionsContainer}>
-              <View style={styles.intervalRow}>
-                <Text style={[styles.intervalLabel, { color: colors.text + '80' }]}>Month</Text>
-                <Input
-                  value={yearlyMonth.toString()}
-                  onChangeText={(value) => setYearlyMonth(Math.min(12, Math.max(1, parseInt(value) || 1)))}
-                  keyboardType="numeric"
-                  style={styles.intervalInput}
-                />
-                <Text style={[styles.intervalLabel, { color: colors.text + '80' }]}>Day</Text>
-                <Input
-                  value={yearlyDay.toString()}
-                  onChangeText={(value) => setYearlyDay(Math.min(31, Math.max(1, parseInt(value) || 1)))}
-                  keyboardType="numeric"
-                  style={styles.intervalInput}
-                />
+              <Text style={[styles.optionsLabel, { color: colors.text + '80' }]}>
+                Select month:
+              </Text>
+              
+              {/* Month Selection Grid */}
+              <View style={styles.monthsGrid}>
+                {[
+                  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+                ].map((monthName, index) => (
+                  <TouchableOpacity
+                    key={monthName}
+                    style={[
+                      styles.monthOption,
+                      {
+                        backgroundColor: yearlyMonth === index + 1
+                          ? colors.tint
+                          : colors.background,
+                        borderColor: yearlyMonth === index + 1
+                          ? colors.tint
+                          : colors.text + '30',
+                      },
+                    ]}
+                    onPress={() => setYearlyMonth(index + 1)}
+                  >
+                    <Text
+                      style={[
+                        styles.monthOptionText,
+                        {
+                          color: yearlyMonth === index + 1
+                            ? 'white'
+                            : colors.text,
+                        },
+                      ]}
+                    >
+                      {monthName}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              <Text style={[styles.optionsLabel, { color: colors.text + '80', marginTop: 16 }]}>
+                Select day:
+              </Text>
+              
+              {/* Day Selection Grid */}
+              <View style={styles.monthDaysGrid}>
+                {Array.from({ length: 31 }, (_, i) => i + 1).map((day) => (
+                  <TouchableOpacity
+                    key={day}
+                    style={[
+                      styles.monthDayOption,
+                      {
+                        backgroundColor: yearlyDay === day
+                          ? colors.tint
+                          : colors.background,
+                        borderColor: yearlyDay === day
+                          ? colors.tint
+                          : colors.text + '30',
+                      },
+                    ]}
+                    onPress={() => setYearlyDay(day)}
+                  >
+                    <Text
+                      style={[
+                        styles.monthDayText,
+                        {
+                          color: yearlyDay === day
+                            ? 'white'
+                            : colors.text,
+                        },
+                      ]}
+                    >
+                      {day}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
               </View>
             </View>
           )}
@@ -711,5 +816,52 @@ const styles = StyleSheet.create({
     marginBottom: 0,
     fontSize: 13,
     paddingVertical: 6,
+  },
+  intervalToggle: {
+    marginTop: 12,
+    paddingVertical: 8,
+  },
+  intervalToggleText: {
+    fontSize: 12,
+    textAlign: 'center',
+  },
+  monthDaysGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginTop: 12,
+    justifyContent: 'flex-start',
+  },
+  monthDayOption: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    borderWidth: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  monthDayText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  monthsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 12,
+    justifyContent: 'flex-start',
+  },
+  monthOption: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 16,
+    borderWidth: 1,
+    minWidth: 50,
+    alignItems: 'center',
+  },
+  monthOptionText: {
+    fontSize: 12,
+    fontWeight: '600',
   },
 });

@@ -21,9 +21,13 @@ export default function CreateTaskScreen() {
       return;
     }
 
+    console.log('Creating task with data:', JSON.stringify(taskData, null, 2));
+    console.log('Household ID:', householdId);
+
     setIsLoading(true);
     try {
-      await taskService.createTask(householdId, taskData);
+      const createdTask = await taskService.createTask(householdId, taskData);
+      console.log('Task created successfully:', createdTask);
       showSuccess('Task Created', `"${taskData.title}" has been created successfully!`);
       router.back(); // Return to tasks screen
     } catch (error: any) {

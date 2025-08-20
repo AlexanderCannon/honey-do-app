@@ -15,7 +15,7 @@ export default function RegisterScreen() {
   const [isLoading, setIsLoading] = useState(false);
 
   const { register } = useAuth();
-  const { showError } = useToast();
+  const { showError, showSuccess } = useToast();
 
   const updateFormData = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -32,8 +32,8 @@ export default function RegisterScreen() {
       return false;
     }
 
-    if (formData.password.length < 6) {
-      showError('Password Too Short', 'Password must be at least 6 characters long');
+    if (formData.password.length < 8) {
+      showError('Password Too Short', 'Password must be at least 8 characters long');
       return false;
     }
 
@@ -57,7 +57,11 @@ export default function RegisterScreen() {
         email: formData.email,
         password: formData.password,
       });
-      // Navigation will be handled automatically by the auth state change
+      
+      // Show success message and navigate to family setup for new users
+      showSuccess('Welcome!', 'Account created successfully! Let\'s set up your household.');
+      console.log('Registration successful, navigating to family setup...');
+      router.replace('/(auth)/family-setup');
     } catch (error: any) {
       console.error('Registration error:', error);
       showError(
@@ -105,7 +109,7 @@ export default function RegisterScreen() {
         label="Password"
         value={formData.password}
         onChangeText={(value) => updateFormData('password', value)}
-        placeholder="Create a password (min 6 characters)"
+        placeholder="Create a password (min 8 characters)"
         secureTextEntry
         autoCapitalize="none"
         autoCorrect={false}

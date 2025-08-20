@@ -33,6 +33,7 @@ export function TaskCard({
   const isPending = taskOccurrence?.status === 'pending';
 
   if (!displayTask) {
+    console.warn('TaskCard: No task data available', { taskOccurrence, task });
     return null;
   }
 

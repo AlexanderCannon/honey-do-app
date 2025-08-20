@@ -342,10 +342,28 @@ export function AuthProvider({ children }: AuthProviderProps) {
         });
         console.log('Registration successful (without /me data)');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Registration failed in AuthContext:', error);
       dispatch({ type: 'SET_LOADING', payload: false });
-      throw error;
+      
+      // Handle validation errors from backend (422 responses)
+      let errorMessage = 'Registration failed';
+      if (error.response?.status === 422 && error.response?.data?.errors) {
+        const errors = error.response.data.errors;
+        const errorMessages = [];
+        
+        if (errors.email) errorMessages.push(`Email: ${errors.email.join(', ')}`);
+        if (errors.password) errorMessages.push(`Password: ${errors.password.join(', ')}`);
+        if (errors.name) errorMessages.push(`Name: ${errors.name.join(', ')}`);
+        
+        if (errorMessages.length > 0) {
+          errorMessage = errorMessages.join('\n');
+        }
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      throw new Error(errorMessage);
     }
   };
 

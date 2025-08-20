@@ -21,8 +21,12 @@ export default function TasksScreen() {
   const isParent = activeHousehold?.role === 'parent';
 
   const loadTaskOccurrences = useCallback(async (showLoading = true) => {
-    if (!householdId) return;
+    if (!householdId) {
+      console.log('loadTaskOccurrences: No household ID');
+      return;
+    }
 
+    console.log(`loadTaskOccurrences: Loading ${selectedFilter} tasks for household ${householdId}`);
     if (showLoading) setIsLoading(true);
 
     try {
@@ -30,24 +34,33 @@ export default function TasksScreen() {
       
       switch (selectedFilter) {
         case 'my-tasks':
+          console.log(`Calling getMyTaskOccurrences for user ${user?.id}`);
           response = await taskService.getMyTaskOccurrences(householdId, user?.id || '', 'pending');
           break;
         case 'pending':
+          console.log('Calling getTaskOccurrences with status: pending');
           response = await taskService.getTaskOccurrences(householdId, { status: 'pending' });
           break;
         case 'completed':
+          console.log('Calling getTaskOccurrences with status: completed');
           response = await taskService.getTaskOccurrences(householdId, { status: 'completed' });
           break;
         case 'overdue':
+          console.log('Calling getTaskOccurrences with status: overdue');
           response = await taskService.getTaskOccurrences(householdId, { status: 'overdue' });
           break;
         case 'all':
         default:
+          console.log('Calling getTaskOccurrences with no filter (all tasks)');
           response = await taskService.getTaskOccurrences(householdId);
           break;
       }
       
+      console.log('Task occurrences API response:', response);
       const taskData = response.data;
+      console.log('Extracted task data:', taskData);
+      console.log('Task data length:', Array.isArray(taskData) ? taskData.length : 'not array');
+      
       setTaskOccurrences(Array.isArray(taskData) ? taskData : []);
     } catch (error: any) {
       console.error('Failed to load task occurrences:', error);
@@ -126,14 +139,17 @@ export default function TasksScreen() {
     );
   }
 
-  const renderTaskOccurrence = ({ item }: { item: TaskOccurrence }) => (
-    <TaskCard
-      taskOccurrence={item}
-      onComplete={() => handleCompleteTask(item.id)}
-      onReopen={() => handleReopenTask(item.id)}
-      showCompleteButton={true}
-    />
-  );
+  const renderTaskOccurrence = ({ item }: { item: TaskOccurrence }) => {
+    console.log('Rendering task occurrence:', item);
+    return (
+      <TaskCard
+        taskOccurrence={item}
+        onComplete={() => handleCompleteTask(item.id)}
+        onReopen={() => handleReopenTask(item.id)}
+        showCompleteButton={true}
+      />
+    );
+  };
 
   const renderEmptyState = () => (
     <View style={styles.emptyState}>
@@ -197,6 +213,11 @@ export default function TasksScreen() {
         }
         ListEmptyComponent={!isLoading ? renderEmptyState : null}
         showsVerticalScrollIndicator={false}
+        onLayout={() => {
+          console.log('FlatList onLayout - taskOccurrences length:', taskOccurrences.length);
+          console.log('FlatList onLayout - taskOccurrences data:', taskOccurrences);
+          console.log('FlatList onLayout - isLoading:', isLoading);
+        }}
       />
     </Screen>
   );

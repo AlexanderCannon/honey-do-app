@@ -160,6 +160,15 @@ export class TaskService {
       status: 'overdue'
     });
   }
+
+  // Admin functions
+  async cleanupExcessiveOccurrences(householdId: string): Promise<{ message: string; deleted_count: number }> {
+    const response = await apiClient.post<{ message: string; deleted_count: number }>(
+      `/households/${householdId}/task-occurrences/cleanup`,
+      {}
+    );
+    return response;
+  }
 }
 
 // Export singleton instance

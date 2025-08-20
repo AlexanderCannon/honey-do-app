@@ -15,7 +15,7 @@ export default function HouseholdScreen() {
         <Text style={[styles.title, { color: colors.text }]}>👨‍👩‍👧‍👦 Family</Text>
         {activeHousehold && (
           <Text style={[styles.householdName, { color: colors.tint }]}>
-            {activeHousehold.household?.name || 'Your Household'}
+            {activeHousehold.name || 'Your Household'}
           </Text>
         )}
         <Text style={[styles.role, { color: colors.text }]}>

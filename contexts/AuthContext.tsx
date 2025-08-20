@@ -1,22 +1,91 @@
 import { apiClient } from '@/lib/apiClient';
 import { tokenStorage } from '@/lib/tokenStorage';
+import { householdService } from '@/services/householdService';
 import {
   AuthResponse,
   AuthState,
-  HouseholdMember,
+  HouseholdMembership,
   LoginRequest,
   RegisterRequest,
   User
 } from '@/types';
+import * as SecureStore from 'expo-secure-store';
 import React, { createContext, ReactNode, useContext, useEffect, useReducer } from 'react';
+
+// Storage keys
+const ACTIVE_HOUSEHOLD_KEY = 'activeHouseholdId';
+
+// Helper functions for active household persistence
+const saveActiveHouseholdId = async (householdId: string | null) => {
+  try {
+    if (householdId) {
+      await SecureStore.setItemAsync(ACTIVE_HOUSEHOLD_KEY, householdId);
+    } else {
+      await SecureStore.deleteItemAsync(ACTIVE_HOUSEHOLD_KEY);
+    }
+  } catch (error) {
+    console.error('Error saving active household ID:', error);
+  }
+};
+
+const getActiveHouseholdId = async (): Promise<string | null> => {
+  try {
+    return await SecureStore.getItemAsync(ACTIVE_HOUSEHOLD_KEY);
+  } catch (error) {
+    console.error('Error getting active household ID:', error);
+    return null;
+  }
+};
+
+// Helper function to get household name (simplified for actual API response)
+const getHouseholdName = (householdMembership: HouseholdMembership): string => {
+  return householdMembership.name || 'Unknown';
+};
+
+// Helper function to get household ID (simplified for actual API response)  
+const getHouseholdId = (householdMembership: HouseholdMembership): string | null => {
+  return householdMembership.id || null;
+};
+
+// Smart household selection: use stored preference or auto-select first
+const selectActiveHousehold = async (households: HouseholdMembership[]): Promise<HouseholdMembership | null> => {
+  if (!households || households.length === 0) {
+    await saveActiveHouseholdId(null);
+    return null;
+  }
+
+  // If only one household, auto-select it
+  if (households.length === 1) {
+    const household = households[0];
+    const id = getHouseholdId(household);
+    await saveActiveHouseholdId(id);
+    return household;
+  }
+
+  // Multiple households: try to use stored preference
+  const storedHouseholdId = await getActiveHouseholdId();
+  
+  if (storedHouseholdId) {
+    const foundHousehold = households.find(h => getHouseholdId(h) === storedHouseholdId);
+    if (foundHousehold) {
+      return foundHousehold;
+    }
+  }
+
+  // Fallback: select first household and save it
+  const firstHousehold = households[0];
+  const id = getHouseholdId(firstHousehold);
+  await saveActiveHouseholdId(id);
+  return firstHousehold;
+};
 
 // Auth actions
 type AuthAction =
   | { type: 'SET_LOADING'; payload: boolean }
-  | { type: 'LOGIN_SUCCESS'; payload: { user: User; token: string; households: HouseholdMember[] } }
+  | { type: 'LOGIN_SUCCESS'; payload: { user: User; token: string; households: HouseholdMembership[] } }
   | { type: 'LOGOUT' }
-  | { type: 'SET_HOUSEHOLDS'; payload: HouseholdMember[] }
-  | { type: 'SET_ACTIVE_HOUSEHOLD'; payload: HouseholdMember | null }
+  | { type: 'SET_HOUSEHOLDS'; payload: HouseholdMembership[] }
+  | { type: 'SET_ACTIVE_HOUSEHOLD'; payload: HouseholdMembership | null }
   | { type: 'UPDATE_USER'; payload: User };
 
 // Initial state
@@ -56,7 +125,7 @@ function authReducer(state: AuthState, action: AuthAction): AuthState {
       return {
         ...state,
         households: action.payload || [],
-        activeHousehold: state.activeHousehold || (action.payload && action.payload[0]) || null,
+        // Note: activeHousehold is managed separately via SET_ACTIVE_HOUSEHOLD action
       };
 
     case 'SET_ACTIVE_HOUSEHOLD':
@@ -75,8 +144,12 @@ interface AuthContextType extends AuthState {
   login: (credentials: LoginRequest) => Promise<void>;
   register: (userData: RegisterRequest) => Promise<void>;
   logout: () => Promise<void>;
-  setActiveHousehold: (household: HouseholdMember) => void;
+  setActiveHousehold: (household: HouseholdMembership) => Promise<void>;
   refreshUserData: () => Promise<void>;
+  leaveHousehold: (householdId: string) => Promise<void>;
+  deleteHousehold: (householdId: string) => Promise<void>;
+
+  getActiveHouseholdName: () => string;
   isParent: boolean;
 }
 
@@ -105,21 +178,27 @@ export function AuthProvider({ children }: AuthProviderProps) {
         try {
           const userData: any = await apiClient.get('/me');
           console.log('Auth initialization - user data received:', JSON.stringify(userData, null, 2));
-          
+
           const adaptedData = {
             user: userData?.user || userData,
             households: userData?.households || []
           };
-          
+
           if (adaptedData.user) {
+            const householdsArray = Array.isArray(adaptedData.households) ? adaptedData.households : [];
+            const activeHousehold = await selectActiveHousehold(householdsArray);
+            
             dispatch({
               type: 'LOGIN_SUCCESS',
               payload: {
                 user: adaptedData.user,
                 token,
-                households: Array.isArray(adaptedData.households) ? adaptedData.households : [],
+                households: householdsArray,
               },
             });
+            
+            // Set the smart-selected active household
+            dispatch({ type: 'SET_ACTIVE_HOUSEHOLD', payload: activeHousehold });
           } else {
             throw new Error('Invalid user data received from /me endpoint');
           }
@@ -150,7 +229,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       console.log('Calling login API...');
       const authResponse: AuthResponse = await apiClient.post('/auth/login', credentials);
       console.log('Login API response received:', authResponse);
-      
+
       await tokenStorage.setToken(authResponse.token);
       console.log('Token stored successfully');
 
@@ -159,7 +238,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       try {
         const userData: any = await apiClient.get('/me'); // Use any temporarily to see the actual structure
         console.log('User data received (raw):', JSON.stringify(userData, null, 2));
-        
+
         // Try to adapt the data to our expected format
         const adaptedData = {
           user: userData?.user || userData,
@@ -168,14 +247,20 @@ export function AuthProvider({ children }: AuthProviderProps) {
         console.log('Adapted user data:', adaptedData);
 
         if (adaptedData.user) {
+          const householdsArray = Array.isArray(adaptedData.households) ? adaptedData.households : [];
+          const activeHousehold = await selectActiveHousehold(householdsArray);
+          
           dispatch({
             type: 'LOGIN_SUCCESS',
             payload: {
               user: adaptedData.user,
               token: authResponse.token,
-              households: Array.isArray(adaptedData.households) ? adaptedData.households : [],
+              households: householdsArray,
             },
           });
+          
+          // Set the smart-selected active household
+          dispatch({ type: 'SET_ACTIVE_HOUSEHOLD', payload: activeHousehold });
         } else {
           throw new Error('Invalid user data received from /me endpoint');
         }
@@ -208,7 +293,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       console.log('Calling register API...');
       const authResponse: AuthResponse = await apiClient.post('/auth/register', userData);
       console.log('Register API response received:', authResponse);
-      
+
       await tokenStorage.setToken(authResponse.token);
       console.log('Token stored successfully');
 
@@ -217,7 +302,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       try {
         const userWithHouseholds: any = await apiClient.get('/me');
         console.log('User data received (raw):', JSON.stringify(userWithHouseholds, null, 2));
-        
+
         // Try to adapt the data to our expected format
         const adaptedData = {
           user: userWithHouseholds?.user || userWithHouseholds,
@@ -226,14 +311,20 @@ export function AuthProvider({ children }: AuthProviderProps) {
         console.log('Adapted user data:', adaptedData);
 
         if (adaptedData.user) {
+          const householdsArray = Array.isArray(adaptedData.households) ? adaptedData.households : [];
+          const activeHousehold = await selectActiveHousehold(householdsArray);
+          
           dispatch({
             type: 'LOGIN_SUCCESS',
             payload: {
               user: adaptedData.user,
               token: authResponse.token,
-              households: Array.isArray(adaptedData.households) ? adaptedData.households : [],
+              households: householdsArray,
             },
           });
+          
+          // Set the smart-selected active household
+          dispatch({ type: 'SET_ACTIVE_HOUSEHOLD', payload: activeHousehold });
         } else {
           throw new Error('Invalid user data received from /me endpoint');
         }
@@ -271,11 +362,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   };
 
-  const setActiveHousehold = (household: HouseholdMember) => {
+  const setActiveHousehold = async (household: HouseholdMembership) => {
     dispatch({ type: 'SET_ACTIVE_HOUSEHOLD', payload: household });
+    await saveActiveHouseholdId(getHouseholdId(household));
   };
 
-  const refreshUserData = async () => {
+    const refreshUserData = async () => {
     try {
       console.log('Refreshing user data...');
       const userData: any = await apiClient.get('/me');
@@ -289,7 +381,16 @@ export function AuthProvider({ children }: AuthProviderProps) {
       if (adaptedData.user) {
         dispatch({ type: 'UPDATE_USER', payload: adaptedData.user });
       }
-      dispatch({ type: 'SET_HOUSEHOLDS', payload: Array.isArray(adaptedData.households) ? adaptedData.households : [] });
+
+      const householdsArray = Array.isArray(adaptedData.households) ? adaptedData.households : [];
+      
+      // Smart-select active household BEFORE setting households to avoid race conditions
+      const activeHousehold = await selectActiveHousehold(householdsArray);
+      
+      // Update state with both households and selected active household
+      dispatch({ type: 'SET_HOUSEHOLDS', payload: householdsArray });
+      dispatch({ type: 'SET_ACTIVE_HOUSEHOLD', payload: activeHousehold });
+
       console.log('User data refreshed successfully');
     } catch (error) {
       console.error('Failed to refresh user data:', error);
@@ -297,8 +398,53 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   };
 
+    const leaveHousehold = async (householdId: string) => {
+    try {
+      console.log('Leaving household:', householdId);
+      if (!state.user?.id) {
+        throw new Error('User ID not available');
+      }
+      
+      // Call API to remove user from household
+      await apiClient.delete(`/households/${householdId}/members/${state.user.id}`);
+      
+      // Refresh user data to get updated households list
+      await refreshUserData();
+      
+      console.log('Successfully left household');
+    } catch (error) {
+      console.error('Failed to leave household:', error);
+      throw error;
+    }
+  };
+
+  const deleteHousehold = async (householdId: string) => {
+    try {
+      console.log('Deleting household:', householdId);
+      
+      // Call API to delete household (parent only)
+      await householdService.deleteHousehold(householdId);
+      
+      // Refresh user data to get updated households list
+      await refreshUserData();
+      
+      console.log('Successfully deleted household');
+    } catch (error) {
+      console.error('Failed to delete household:', error);
+      throw error;
+    }
+  };
+
+
+
   // Computed property for checking if user is a parent in active household
   const isParent = state.activeHousehold?.role === 'parent';
+
+  // Helper function to get active household name (handles API data structure)
+  const getActiveHouseholdName = (): string => {
+    if (!state.activeHousehold) return 'None';
+    return getHouseholdName(state.activeHousehold);
+  };
 
   const contextValue: AuthContextType = {
     ...state,
@@ -307,6 +453,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
     logout,
     setActiveHousehold,
     refreshUserData,
+    leaveHousehold,
+    deleteHousehold,
+
+    getActiveHouseholdName,
     isParent,
   };
 

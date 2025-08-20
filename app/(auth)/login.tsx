@@ -1,19 +1,8 @@
-import { Colors } from '@/constants/Colors';
+import { Button, Divider, Header, Input, Screen } from '@/components/ui/common';
 import { useAuth } from '@/contexts/AuthContext';
-import { useColorScheme } from '@/hooks/useColorScheme';
 import { router } from 'expo-router';
 import React, { useState } from 'react';
-import {
-  Alert,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import { Alert, StyleSheet, Text } from 'react-native';
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
@@ -21,8 +10,6 @@ export default function LoginScreen() {
   const [isLoading, setIsLoading] = useState(false);
 
   const { login } = useAuth();
-  const colorScheme = useColorScheme();
-  const colors = Colors[colorScheme ?? 'light'];
 
   const testApiConnection = async () => {
     try {
@@ -31,7 +18,7 @@ export default function LoginScreen() {
       const data = await response.text();
       console.log('Health check response:', data);
       Alert.alert('API Test', `API Response: ${data}`);
-    } catch (error) {
+    } catch (error: any) {
       console.error('API test failed:', error);
       Alert.alert('API Test Failed', 'Could not connect to localhost:4000');
     } finally {
@@ -75,7 +62,7 @@ export default function LoginScreen() {
           `Status: ${meResponse.status}\nResponse: ${meData.substring(0, 200)}...`
         );
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Me endpoint test failed:', error);
       Alert.alert('Me Endpoint Test Failed', error.toString());
     } finally {
@@ -108,206 +95,83 @@ export default function LoginScreen() {
     router.push('/(auth)/register');
   };
 
-  return (
-    <KeyboardAvoidingView
-      style={[styles.container, { backgroundColor: colors.background }]}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        <View style={styles.header}>
-          <Text style={[styles.title, { color: colors.text }]}>🍯 Honey Do</Text>
-          <Text style={[styles.subtitle, { color: colors.text }]}>
-            Welcome back! Sign in to your account
-          </Text>
-        </View>
+    return (
+    <Screen scrollable keyboardAvoiding>
+      <Header 
+        title="🍯 Honey Do"
+        subtitle="Welcome back! Sign in to your account"
+      />
 
-        <View style={styles.form}>
-          <View style={styles.inputContainer}>
-            <Text style={[styles.label, { color: colors.text }]}>Email</Text>
-            <TextInput
-              style={[styles.input, {
-                backgroundColor: colors.background,
-                borderColor: colors.text + '30',
-                color: colors.text
-              }]}
-              value={email}
-              onChangeText={setEmail}
-              placeholder="Enter your email"
-              placeholderTextColor={colors.text + '60'}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              autoCorrect={false}
-            />
-          </View>
+      <Input
+        label="Email"
+        value={email}
+        onChangeText={setEmail}
+        placeholder="Enter your email"
+        keyboardType="email-address"
+        autoCapitalize="none"
+        autoCorrect={false}
+        required
+      />
 
-          <View style={styles.inputContainer}>
-            <Text style={[styles.label, { color: colors.text }]}>Password</Text>
-            <TextInput
-              style={[styles.input, {
-                backgroundColor: colors.background,
-                borderColor: colors.text + '30',
-                color: colors.text
-              }]}
-              value={password}
-              onChangeText={setPassword}
-              placeholder="Enter your password"
-              placeholderTextColor={colors.text + '60'}
-              secureTextEntry
-              autoCapitalize="none"
-              autoCorrect={false}
-            />
-          </View>
+      <Input
+        label="Password"
+        value={password}
+        onChangeText={setPassword}
+        placeholder="Enter your password"
+        secureTextEntry
+        autoCapitalize="none"
+        autoCorrect={false}
+        required
+      />
 
-          <TouchableOpacity
-            style={[styles.loginButton, { backgroundColor: colors.tint }]}
-            onPress={handleLogin}
-            disabled={isLoading}
-          >
-            <Text style={styles.loginButtonText}>
-              {isLoading ? 'Signing In...' : 'Sign In'}
-            </Text>
-          </TouchableOpacity>
+      <Button
+        title={isLoading ? 'Signing In...' : 'Sign In'}
+        onPress={handleLogin}
+        disabled={isLoading}
+        loading={isLoading}
+        style={{ marginTop: 8, marginBottom: 8 }}
+      />
 
-          <View style={styles.divider}>
-            <View style={[styles.dividerLine, { backgroundColor: colors.text + '30' }]} />
-            <Text style={[styles.dividerText, { color: colors.text }]}>or</Text>
-            <View style={[styles.dividerLine, { backgroundColor: colors.text + '30' }]} />
-          </View>
+      <Divider text="or" />
 
-          <TouchableOpacity
-            style={[styles.registerButton, { borderColor: colors.tint }]}
-            onPress={goToRegister}
-            disabled={isLoading}
-          >
-            <Text style={[styles.registerButtonText, { color: colors.tint }]}>
-              Create New Account
-            </Text>
-          </TouchableOpacity>
+      <Button
+        title="Create New Account"
+        onPress={goToRegister}
+        variant="outline"
+        disabled={isLoading}
+        style={{ marginBottom: 16 }}
+      />
 
-          <TouchableOpacity
-            style={[styles.testButton, { backgroundColor: colors.text + '20' }]}
-            onPress={testApiConnection}
-            disabled={isLoading}
-          >
-            <Text style={[styles.testButtonText, { color: colors.text }]}>
-              Test API Connection
-            </Text>
-          </TouchableOpacity>
+      <Button
+        title="Test API Connection"
+        onPress={testApiConnection}
+        variant="ghost"
+        size="small"
+        disabled={isLoading}
+        style={{ marginBottom: 8 }}
+      />
 
-          <TouchableOpacity
-            style={[styles.testButton, { backgroundColor: colors.tint + '20' }]}
-            onPress={testMeEndpoint}
-            disabled={isLoading}
-          >
-            <Text style={[styles.testButtonText, { color: colors.tint }]}>
-              Test /me Endpoint
-            </Text>
-          </TouchableOpacity>
-        </View>
+      <Button
+        title="Test /me Endpoint"
+        onPress={testMeEndpoint}
+        variant="ghost"
+        size="small"
+        disabled={isLoading}
+        style={{ marginBottom: 40 }}
+      />
 
-        <View style={styles.footer}>
-          <Text style={[styles.footerText, { color: colors.text + '80' }]}>
-            Turn household chores into fun family quests! 🎮
-          </Text>
-        </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+      <Text style={styles.footerText}>
+        Turn household chores into fun family quests! 🎮
+      </Text>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  scrollContent: {
-    flexGrow: 1,
-    justifyContent: 'center',
-    padding: 20,
-  },
-  header: {
-    alignItems: 'center',
-    marginBottom: 40,
-  },
-  title: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontSize: 16,
-    textAlign: 'center',
-    opacity: 0.8,
-  },
-  form: {
-    width: '100%',
-    maxWidth: 400,
-    alignSelf: 'center',
-  },
-  inputContainer: {
-    marginBottom: 20,
-  },
-  label: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 8,
-  },
-  input: {
-    borderWidth: 1,
-    borderRadius: 12,
-    padding: 16,
-    fontSize: 16,
-  },
-  loginButton: {
-    borderRadius: 12,
-    padding: 16,
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  loginButtonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  divider: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: 24,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-  },
-  dividerText: {
-    marginHorizontal: 16,
-    fontSize: 14,
-  },
-  registerButton: {
-    borderWidth: 2,
-    borderRadius: 12,
-    padding: 16,
-    alignItems: 'center',
-  },
-  registerButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  testButton: {
-    borderRadius: 8,
-    padding: 12,
-    alignItems: 'center',
-    marginTop: 16,
-  },
-  testButtonText: {
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  footer: {
-    marginTop: 40,
-    alignItems: 'center',
-  },
   footerText: {
     fontSize: 14,
     textAlign: 'center',
     fontStyle: 'italic',
+    opacity: 0.8,
   },
 });

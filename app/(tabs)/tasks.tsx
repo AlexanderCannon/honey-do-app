@@ -18,7 +18,7 @@ export default function TasksScreen() {
         </Text>
         {activeHousehold && (
           <Text style={[styles.householdName, { color: colors.tint }]}>
-            {activeHousehold.household?.name || 'Your Household'}
+            {activeHousehold.name || 'Your Household'}
           </Text>
         )}
       </View>

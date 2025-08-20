@@ -1,13 +1,11 @@
-import { Colors } from '@/constants/Colors';
+import { Button, Card, Header, Screen } from '@/components/ui/common';
 import { useAuth } from '@/contexts/AuthContext';
-import { useColorScheme } from '@/hooks/useColorScheme';
+import { router } from 'expo-router';
 import React from 'react';
-import { Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, StyleSheet, Text } from 'react-native';
 
 export default function ProfileScreen() {
-  const { user, activeHousehold, households, logout, setActiveHousehold } = useAuth();
-  const colorScheme = useColorScheme();
-  const colors = Colors[colorScheme ?? 'light'];
+  const { user, activeHousehold, households, logout, setActiveHousehold, getActiveHouseholdName } = useAuth();
 
   const handleLogout = () => {
     Alert.alert(
@@ -24,7 +22,7 @@ export default function ProfileScreen() {
     if (households.length <= 1) return;
 
     const householdOptions = households.map((h, index) => ({
-      text: h.household?.name || `Household ${index + 1}`,
+      text: h.name || `Household ${index + 1}`,
       onPress: () => setActiveHousehold(h),
     }));
 
@@ -38,148 +36,136 @@ export default function ProfileScreen() {
     );
   };
 
+  const goToHouseholdManagement = () => {
+    router.push('/household-management');
+  };
+
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <View style={styles.header}>
-        <Text style={[styles.title, { color: colors.text }]}>👤 Profile</Text>
-      </View>
+    <Screen scrollable>
+      <Header 
+        title="👤 Profile"
+        subtitle={`Welcome, ${user?.name || 'User'}!`}
+      />
 
-      <View style={styles.content}>
-        <View style={styles.profileSection}>
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>Account</Text>
-          <View style={[styles.profileItem, { borderColor: colors.text + '20' }]}>
-            <Text style={[styles.profileLabel, { color: colors.text }]}>Name</Text>
-            <Text style={[styles.profileValue, { color: colors.text }]}>
-              {user?.name || 'Unknown'}
-            </Text>
-          </View>
-          <View style={[styles.profileItem, { borderColor: colors.text + '20' }]}>
-            <Text style={[styles.profileLabel, { color: colors.text }]}>Email</Text>
-            <Text style={[styles.profileValue, { color: colors.text }]}>
-              {user?.email || 'Unknown'}
-            </Text>
-          </View>
-        </View>
-
-        <View style={styles.profileSection}>
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>Households</Text>
-          <View style={[styles.profileItem, { borderColor: colors.text + '20' }]}>
-            <Text style={[styles.profileLabel, { color: colors.text }]}>Active Household</Text>
-            <Text style={[styles.profileValue, { color: colors.tint }]}>
-              {activeHousehold?.household?.name || 'None'}
-            </Text>
-          </View>
-          {households.length > 1 && (
-            <TouchableOpacity
-              style={[styles.actionButton, { borderColor: colors.tint }]}
-              onPress={handleSwitchHousehold}
-            >
-              <Text style={[styles.actionButtonText, { color: colors.tint }]}>
-                Switch Household ({households.length} available)
-              </Text>
-            </TouchableOpacity>
-          )}
-        </View>
-
-        <View style={styles.profileSection}>
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>Settings</Text>
-          <Text style={[styles.placeholder, { color: colors.text }]}>
-            🚧 Profile settings coming soon!
-          </Text>
-          <Text style={[styles.description, { color: colors.text }]}>
-            Coming features:
-            {'\n'}• Update profile photo
-            {'\n'}• Change display name
-            {'\n'}• Notification preferences
-            {'\n'}• Account settings
-          </Text>
-        </View>
-      </View>
-
-      <TouchableOpacity
-        style={[styles.logoutButton, { backgroundColor: colors.tint + '20', borderColor: colors.tint }]}
-        onPress={handleLogout}
+      <Card
+        title="Account Information"
+        icon={<Text style={styles.sectionIcon}>📋</Text>}
+        style={styles.sectionCard}
       >
-        <Text style={[styles.logoutButtonText, { color: colors.tint }]}>
-          Sign Out
+        <Text style={styles.infoLabel}>Name</Text>
+        <Text style={styles.infoValue}>{user?.name || 'Unknown'}</Text>
+        
+        <Text style={[styles.infoLabel, styles.labelSpacing]}>Email</Text>
+        <Text style={styles.infoValue}>{user?.email || 'Unknown'}</Text>
+      </Card>
+
+      <Card
+        title="Household Status"
+        icon={<Text style={styles.sectionIcon}>🏠</Text>}
+        style={styles.sectionCard}
+      >
+        <Text style={styles.infoLabel}>Active Household</Text>
+        <Text style={[styles.infoValue, activeHousehold ? styles.activeHousehold : styles.noHousehold]}>
+          {getActiveHouseholdName()}
         </Text>
-      </TouchableOpacity>
-    </View>
+        
+        {activeHousehold?.role && (
+          <>
+            <Text style={[styles.infoLabel, styles.labelSpacing]}>Your Role</Text>
+            <Text style={styles.infoValue}>
+              {activeHousehold.role === 'parent' ? '👑 Parent' : '👤 Member'}
+            </Text>
+          </>
+        )}
+        
+        <Text style={[styles.infoLabel, styles.labelSpacing]}>Total Households</Text>
+        <Text style={styles.infoValue}>
+          {households.length} household{households.length !== 1 ? 's' : ''}
+        </Text>
+      </Card>
+
+      {households.length > 1 && (
+        <Button
+          title={`Switch Household (${households.length} available)`}
+          onPress={handleSwitchHousehold}
+          variant="outline"
+          style={styles.actionButton}
+        />
+      )}
+
+      <Button
+        title={activeHousehold ? "Manage Household" : "⚠️ Fix Household Setup"}
+        onPress={goToHouseholdManagement}
+        variant={activeHousehold ? "outline" : "primary"}
+        style={styles.actionButton}
+      />
+
+      <Card
+        title="Settings"
+        icon={<Text style={styles.sectionIcon}>⚙️</Text>}
+        style={styles.sectionCard}
+      >
+        <Text style={styles.comingSoonText}>
+          🚧 Profile settings coming soon!
+        </Text>
+        <Text style={styles.featureList}>
+          Coming features:{'\n'}• Update profile photo{'\n'}• Change display name{'\n'}• Notification preferences{'\n'}• Account settings
+        </Text>
+      </Card>
+
+      <Button
+        title="Sign Out"
+        onPress={handleLogout}
+        variant="ghost"
+        style={styles.logoutButton}
+      />
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    padding: 20,
-  },
-  header: {
-    alignItems: 'center',
-    marginBottom: 30,
-    paddingTop: 40,
-  },
-  title: {
+  sectionIcon: {
     fontSize: 24,
-    fontWeight: 'bold',
   },
-  content: {
-    flex: 1,
+  sectionCard: {
+    marginBottom: 16,
   },
-  profileSection: {
-    marginBottom: 30,
-  },
-  sectionTitle: {
-    fontSize: 18,
+  infoLabel: {
+    fontSize: 14,
     fontWeight: '600',
-    marginBottom: 12,
+    marginBottom: 4,
+    opacity: 0.7,
   },
-  profileItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderWidth: 1,
-    borderRadius: 8,
+  infoValue: {
+    fontSize: 16,
     marginBottom: 8,
   },
-  profileLabel: {
-    fontSize: 16,
-    fontWeight: '500',
-  },
-  profileValue: {
-    fontSize: 16,
-  },
-  actionButton: {
-    borderWidth: 2,
-    borderRadius: 8,
-    padding: 12,
-    alignItems: 'center',
+  labelSpacing: {
     marginTop: 8,
   },
-  actionButtonText: {
-    fontSize: 16,
+  activeHousehold: {
+    color: '#10b981',
     fontWeight: '600',
   },
-  placeholder: {
+  noHousehold: {
+    color: '#ef4444',
+    fontWeight: '600',
+  },
+  actionButton: {
+    marginBottom: 16,
+  },
+  comingSoonText: {
     fontSize: 16,
     fontWeight: '600',
     marginBottom: 8,
   },
-  description: {
+  featureList: {
     fontSize: 14,
     lineHeight: 20,
     opacity: 0.8,
   },
   logoutButton: {
-    borderWidth: 2,
-    borderRadius: 12,
-    padding: 16,
-    alignItems: 'center',
-    marginTop: 20,
-  },
-  logoutButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
+    marginTop: 24,
+    marginBottom: 40,
   },
 });

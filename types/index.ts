@@ -16,6 +16,18 @@ export interface Household {
   updated_at: string;
 }
 
+// ACTUAL API Response Structure (what /me endpoint returns)
+export interface HouseholdMembership {
+  id: string;           // This is actually the household ID, not membership ID
+  name: string;         // Household name
+  role: 'parent' | 'child';
+  status: 'active' | 'inactive';
+  timezone: string;     // Household timezone
+  created_at?: string;
+  updated_at?: string;
+}
+
+// THEORETICAL Full Structure (for reference, but not used by current API)
 export interface HouseholdMember {
   id: string;
   user_id: string;
@@ -98,7 +110,7 @@ export interface PaginatedResponse<T> {
 
 export interface UserWithHouseholds {
   user: User;
-  households: PaginatedResponse<HouseholdMember>;
+  households: HouseholdMembership[]; // API returns simple array, not paginated response
 }
 
 // API error types
@@ -187,7 +199,7 @@ export interface AuthState {
   isAuthenticated: boolean;
   user: User | null;
   token: string | null;
-  households: HouseholdMember[];
-  activeHousehold: HouseholdMember | null;
+  households: HouseholdMembership[];         // Use actual API response type
+  activeHousehold: HouseholdMembership | null; // Use actual API response type
   isLoading: boolean;
 }

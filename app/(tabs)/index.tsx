@@ -20,7 +20,7 @@ export default function HomeScreen() {
         </Text>
         {activeHousehold && (
           <Text style={[styles.householdName, { color: colors.text }]}>
-            {activeHousehold.household?.name}
+            {activeHousehold.name}
           </Text>
         )}
       </View>

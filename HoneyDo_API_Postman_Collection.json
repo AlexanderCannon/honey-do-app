@@ -179,7 +179,7 @@
               "host": ["{{apiUrl}}"],
               "path": ["me"]
             },
-            "description": "Get current user info and households"
+            "description": "Get current user info and households. Returns user object + array of household memberships with flattened structure: {user: User, households: [{id: householdId, name: string, role: 'parent'|'child', status: 'active'|'inactive', timezone: string}]}"
           },
           "response": []
         },
@@ -204,7 +204,7 @@
                 }
               ]
             },
-            "description": "Get current user info and households with pagination"
+            "description": "Get current user info and households with pagination. Note: Currently returns simple array, not paginated response."
           },
           "response": []
         },

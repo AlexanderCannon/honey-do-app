@@ -15,7 +15,7 @@ export default function CalendarScreen() {
         <Text style={[styles.title, { color: colors.text }]}>📅 Family Calendar</Text>
         {activeHousehold && (
           <Text style={[styles.householdName, { color: colors.tint }]}>
-            {activeHousehold.household?.name || 'Your Household'}
+            {activeHousehold.name || 'Your Household'}
           </Text>
         )}
       </View>

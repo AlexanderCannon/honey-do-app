@@ -1,20 +1,9 @@
-import { Colors } from '@/constants/Colors';
+import { Button, Card, Header, Input, Screen } from '@/components/ui/common';
 import { useAuth } from '@/contexts/AuthContext';
-import { useColorScheme } from '@/hooks/useColorScheme';
 import { householdService } from '@/services/householdService';
 import { router } from 'expo-router';
 import React, { useState } from 'react';
-import {
-  Alert,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import { Alert, StyleSheet, Text } from 'react-native';
 
 export default function FamilySetupScreen() {
   const [mode, setMode] = useState<'choose' | 'create' | 'join'>('choose');
@@ -23,8 +12,6 @@ export default function FamilySetupScreen() {
   const [isLoading, setIsLoading] = useState(false);
   
   const { refreshUserData } = useAuth();
-  const colorScheme = useColorScheme();
-  const colors = Colors[colorScheme ?? 'light'];
 
   const handleCreateHousehold = async () => {
     if (!householdName.trim()) {
@@ -86,237 +73,117 @@ export default function FamilySetupScreen() {
   };
 
   const renderChooseMode = () => (
-    <View style={styles.content}>
-      <View style={styles.header}>
-        <Text style={[styles.title, { color: colors.text }]}>🏠 Set Up Your Household</Text>
-        <Text style={[styles.subtitle, { color: colors.text }]}>
-          Choose how you'd like to get started with Honey Do
-        </Text>
-      </View>
+    <>
+      <Header 
+        title="🏠 Set Up Your Household"
+        subtitle="Choose how you'd like to get started with Honey Do"
+      />
 
-      <View style={styles.optionsContainer}>
-        <TouchableOpacity
-          style={[styles.optionButton, { borderColor: colors.tint }]}
-          onPress={() => setMode('create')}
-        >
-          <Text style={[styles.optionIcon]}>🏠</Text>
-          <Text style={[styles.optionTitle, { color: colors.text }]}>Create New Household</Text>
-          <Text style={[styles.optionDescription, { color: colors.text }]}>
-            Start fresh and invite family members to join
-          </Text>
-        </TouchableOpacity>
+      <Card
+        title="Create New Household"
+        subtitle="Start fresh and invite family members to join"
+        icon={<Text style={styles.optionIcon}>🏠</Text>}
+        onPress={() => setMode('create')}
+        variant="outlined"
+        style={styles.optionCard}
+      />
 
-        <TouchableOpacity
-          style={[styles.optionButton, { borderColor: colors.tint }]}
-          onPress={() => setMode('join')}
-        >
-          <Text style={[styles.optionIcon]}>🤝</Text>
-          <Text style={[styles.optionTitle, { color: colors.text }]}>Join Existing Household</Text>
-          <Text style={[styles.optionDescription, { color: colors.text }]}>
-            Enter an invite code to join your family's household
-          </Text>
-        </TouchableOpacity>
-      </View>
-    </View>
+      <Card
+        title="Join Existing Household"
+        subtitle="Enter an invite code to join your family's household"
+        icon={<Text style={styles.optionIcon}>🤝</Text>}
+        onPress={() => setMode('join')}
+        variant="outlined"
+        style={styles.optionCard}
+      />
+    </>
   );
 
   const renderCreateMode = () => (
-    <View style={styles.content}>
-      <View style={styles.header}>
-        <Text style={[styles.title, { color: colors.text }]}>🏠 Create Your Household</Text>
-        <Text style={[styles.subtitle, { color: colors.text }]}>
-          Give your household a name that represents your family
-        </Text>
-      </View>
+    <>
+      <Header 
+        title="🏠 Create Your Household"
+        subtitle="Give your household a name that represents your family"
+      />
 
-      <View style={styles.form}>
-        <View style={styles.inputContainer}>
-          <Text style={[styles.label, { color: colors.text }]}>Household Name</Text>
-          <TextInput
-            style={[styles.input, { 
-              backgroundColor: colors.background,
-              borderColor: colors.text + '30',
-              color: colors.text 
-            }]}
-            value={householdName}
-            onChangeText={setHouseholdName}
-            placeholder="e.g., The Smith Family, Casa Rodriguez"
-            placeholderTextColor={colors.text + '60'}
-            autoCapitalize="words"
-            autoCorrect={false}
-          />
-        </View>
+      <Input
+        label="Household Name"
+        value={householdName}
+        onChangeText={setHouseholdName}
+        placeholder="e.g., The Smith Family, Casa Rodriguez"
+        autoCapitalize="words"
+        autoCorrect={false}
+        required
+      />
 
-        <TouchableOpacity
-          style={[styles.actionButton, { backgroundColor: colors.tint }]}
-          onPress={handleCreateHousehold}
-          disabled={isLoading}
-        >
-          <Text style={styles.actionButtonText}>
-            {isLoading ? 'Creating...' : 'Create Household'}
-          </Text>
-        </TouchableOpacity>
+      <Button
+        title={isLoading ? 'Creating...' : 'Create Household'}
+        onPress={handleCreateHousehold}
+        disabled={isLoading}
+        loading={isLoading}
+        style={styles.actionButton}
+      />
 
-        <TouchableOpacity
-          style={[styles.backButton, { borderColor: colors.text + '30' }]}
-          onPress={() => setMode('choose')}
-          disabled={isLoading}
-        >
-          <Text style={[styles.backButtonText, { color: colors.text }]}>Back</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
+      <Button
+        title="Back"
+        onPress={() => setMode('choose')}
+        variant="outline"
+        disabled={isLoading}
+      />
+    </>
   );
 
   const renderJoinMode = () => (
-    <View style={styles.content}>
-      <View style={styles.header}>
-        <Text style={[styles.title, { color: colors.text }]}>🤝 Join a Household</Text>
-        <Text style={[styles.subtitle, { color: colors.text }]}>
-          Enter the invite code shared by your family member
-        </Text>
-      </View>
+    <>
+      <Header 
+        title="🤝 Join a Household"
+        subtitle="Enter the invite code shared by your family member"
+      />
 
-      <View style={styles.form}>
-        <View style={styles.inputContainer}>
-          <Text style={[styles.label, { color: colors.text }]}>Invite Code</Text>
-          <TextInput
-            style={[styles.input, { 
-              backgroundColor: colors.background,
-              borderColor: colors.text + '30',
-              color: colors.text 
-            }]}
-            value={inviteCode}
-            onChangeText={setInviteCode}
-            placeholder="Enter invite code"
-            placeholderTextColor={colors.text + '60'}
-            autoCapitalize="characters"
-            autoCorrect={false}
-          />
-        </View>
+      <Input
+        label="Invite Code"
+        value={inviteCode}
+        onChangeText={setInviteCode}
+        placeholder="Enter invite code"
+        autoCapitalize="characters"
+        autoCorrect={false}
+        required
+      />
 
-        <TouchableOpacity
-          style={[styles.actionButton, { backgroundColor: colors.tint }]}
-          onPress={handleJoinHousehold}
-          disabled={isLoading}
-        >
-          <Text style={styles.actionButtonText}>
-            {isLoading ? 'Joining...' : 'Join Household'}
-          </Text>
-        </TouchableOpacity>
+      <Button
+        title={isLoading ? 'Joining...' : 'Join Household'}
+        onPress={handleJoinHousehold}
+        disabled={isLoading}
+        loading={isLoading}
+        style={styles.actionButton}
+      />
 
-        <TouchableOpacity
-          style={[styles.backButton, { borderColor: colors.text + '30' }]}
-          onPress={() => setMode('choose')}
-          disabled={isLoading}
-        >
-          <Text style={[styles.backButtonText, { color: colors.text }]}>Back</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
+      <Button
+        title="Back"
+        onPress={() => setMode('choose')}
+        variant="outline"
+        disabled={isLoading}
+      />
+    </>
   );
 
   return (
-    <KeyboardAvoidingView
-      style={[styles.container, { backgroundColor: colors.background }]}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        {mode === 'choose' && renderChooseMode()}
-        {mode === 'create' && renderCreateMode()}
-        {mode === 'join' && renderJoinMode()}
-      </ScrollView>
-    </KeyboardAvoidingView>
+    <Screen scrollable keyboardAvoiding centered>
+      {mode === 'choose' && renderChooseMode()}
+      {mode === 'create' && renderCreateMode()}
+      {mode === 'join' && renderJoinMode()}
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  scrollContent: {
-    flexGrow: 1,
-    justifyContent: 'center',
-    padding: 20,
-  },
-  content: {
-    width: '100%',
-    maxWidth: 400,
-    alignSelf: 'center',
-  },
-  header: {
-    alignItems: 'center',
-    marginBottom: 40,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    marginBottom: 8,
-    textAlign: 'center',
-  },
-  subtitle: {
-    fontSize: 16,
-    textAlign: 'center',
-    opacity: 0.8,
-  },
-  optionsContainer: {
-    gap: 16,
-  },
-  optionButton: {
-    borderWidth: 2,
-    borderRadius: 16,
-    padding: 24,
-    alignItems: 'center',
-  },
   optionIcon: {
     fontSize: 48,
-    marginBottom: 12,
   },
-  optionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    marginBottom: 8,
-  },
-  optionDescription: {
-    fontSize: 14,
-    textAlign: 'center',
-    opacity: 0.8,
-  },
-  form: {
-    gap: 20,
-  },
-  inputContainer: {
-    marginBottom: 20,
-  },
-  label: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 8,
-  },
-  input: {
-    borderWidth: 1,
-    borderRadius: 12,
-    padding: 16,
-    fontSize: 16,
+  optionCard: {
+    marginBottom: 16,
   },
   actionButton: {
-    borderRadius: 12,
-    padding: 16,
-    alignItems: 'center',
-  },
-  actionButtonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  backButton: {
-    borderWidth: 1,
-    borderRadius: 12,
-    padding: 16,
-    alignItems: 'center',
-  },
-  backButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
+    marginBottom: 16,
   },
 });

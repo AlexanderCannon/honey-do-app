@@ -22,11 +22,9 @@ export default function TasksScreen() {
 
   const loadTaskOccurrences = useCallback(async (showLoading = true) => {
     if (!householdId) {
-      console.log('loadTaskOccurrences: No household ID');
       return;
     }
 
-    console.log(`loadTaskOccurrences: Loading ${selectedFilter} tasks for household ${householdId}`);
     if (showLoading) setIsLoading(true);
 
     try {
@@ -34,40 +32,26 @@ export default function TasksScreen() {
 
       switch (selectedFilter) {
         case 'all':
-          console.log('Calling getTaskFeed for combined view');
-          console.log('Household ID:', householdId);
-          console.log('User ID:', user?.id);
           response = await taskService.getTaskFeed(householdId);
-          console.log('Feed response:', response);
           break;
         case 'my-tasks':
-          console.log(`Calling getMyTaskOccurrences for user ${user?.id}`);
           response = await taskService.getMyTaskOccurrences(householdId, user?.id || '', 'pending');
           break;
         case 'pending':
-          console.log('Calling getTaskOccurrences with status: pending');
           response = await taskService.getTaskOccurrences(householdId, { status: 'pending' });
           break;
         case 'completed':
-          console.log('Calling getTaskOccurrences with status: completed');
           response = await taskService.getTaskOccurrences(householdId, { status: 'completed' });
           break;
         case 'overdue':
-          console.log('Calling getTaskOccurrences with status: overdue');
           response = await taskService.getTaskOccurrences(householdId, { status: 'overdue' });
           break;
         default:
-          console.log('Calling getTaskOccurrences with no filter (all tasks)');
           response = await taskService.getTaskOccurrences(householdId);
           break;
       }
 
-      console.log('Task occurrences API response:', response);
       const taskData = response.data;
-      console.log('Extracted task data:', taskData);
-      console.log('Task data length:', Array.isArray(taskData) ? taskData.length : 'not array');
-
-
       setTaskOccurrences(Array.isArray(taskData) ? taskData : []);
     } catch (error: any) {
       console.error('Failed to load task occurrences:', error);
@@ -90,14 +74,12 @@ export default function TasksScreen() {
 
   const handleCompleteTask = useCallback(async (occurrenceId: string) => {
     try {
-      console.log('Completing task occurrence:', occurrenceId);
       await taskService.completeTaskOccurrence(occurrenceId);
-      console.log('Task completed successfully, refreshing list...');
       // Refresh the list to show updated state
       loadTaskOccurrences();
     } catch (error: any) {
       console.error('Failed to complete task:', error);
-      
+
       // Check if it's a duplicate completion error
       if (error?.response?.data?.errors?.task_occurrence_id) {
         showError('Task Already Completed', 'This task has already been completed.');
@@ -155,7 +137,6 @@ export default function TasksScreen() {
   }
 
   const renderTaskOccurrence = ({ item }: { item: TaskOccurrence }) => {
-    console.log('Rendering task occurrence:', item);
     return (
       <TaskCard
         taskOccurrence={item}
@@ -237,11 +218,6 @@ export default function TasksScreen() {
           }
           ListEmptyComponent={!isLoading ? renderEmptyState : null}
           showsVerticalScrollIndicator={false}
-          onLayout={() => {
-            console.log('FlatList onLayout - taskOccurrences length:', taskOccurrences.length);
-            console.log('FlatList onLayout - taskOccurrences data:', taskOccurrences);
-            console.log('FlatList onLayout - isLoading:', isLoading);
-          }}
         />
       )}
     </Screen>

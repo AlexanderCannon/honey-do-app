@@ -10,7 +10,7 @@ export default function FamilySetupScreen() {
   const [mode, setMode] = useState<'choose' | 'create' | 'join'>('choose');
   const [householdName, setHouseholdName] = useState('');
   const [inviteCode, setInviteCode] = useState('');
-    const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
   const { refreshUserData } = useAuth();
   const { showError } = useToast();
@@ -23,22 +23,17 @@ export default function FamilySetupScreen() {
 
     setIsLoading(true);
     try {
-      console.log('Creating household with name:', householdName.trim());
       const createResponse = await householdService.createHousehold({
         name: householdName.trim(),
         timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'America/New_York',
       });
-      console.log('Household created successfully:', createResponse);
-      
+
       // Refresh user data to get the new household and auto-select it as active
-      console.log('Refreshing user data after household creation...');
       await refreshUserData();
-      console.log('User data refreshed successfully');
-      
+
       // Small delay to ensure state is fully updated
       await new Promise(resolve => setTimeout(resolve, 100));
-      
-      console.log('Navigating to main app...');
+
       // Navigate to main app
       router.replace('/(tabs)');
     } catch (error: any) {
@@ -60,23 +55,17 @@ export default function FamilySetupScreen() {
 
     setIsLoading(true);
     try {
-      console.log('Joining household with invite code:', inviteCode.trim());
       await householdService.acceptInvite(inviteCode.trim());
-      console.log('Successfully joined household');
-      
+
       // Refresh user data to get the new household and auto-select it as active
-      console.log('Refreshing user data after joining household...');
       await refreshUserData();
-      console.log('User data refreshed successfully');
-      
+
       // Small delay to ensure state is fully updated
       await new Promise(resolve => setTimeout(resolve, 100));
-      
-      console.log('Navigating to main app...');
+
       // Navigate to main app
       router.replace('/(tabs)');
     } catch (error: any) {
-      console.error('Join household error:', error);
       showError(
         'Failed to Join Household',
         error.message || 'Invalid invite code or invitation has expired'
@@ -88,7 +77,7 @@ export default function FamilySetupScreen() {
 
   const renderChooseMode = () => (
     <>
-      <Header 
+      <Header
         title="🏠 Set Up Your Household"
         subtitle="Choose how you'd like to get started with Honey Do"
       />
@@ -115,7 +104,7 @@ export default function FamilySetupScreen() {
 
   const renderCreateMode = () => (
     <>
-      <Header 
+      <Header
         title="🏠 Create Your Household"
         subtitle="Give your household a name that represents your family"
       />
@@ -149,7 +138,7 @@ export default function FamilySetupScreen() {
 
   const renderJoinMode = () => (
     <>
-      <Header 
+      <Header
         title="🤝 Join a Household"
         subtitle="Enter the invite code shared by your family member"
       />

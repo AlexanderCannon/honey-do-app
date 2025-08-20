@@ -26,8 +26,6 @@ export function TaskFeed({
   onRefresh,
   isRefreshing = false 
 }: TaskFeedProps) {
-  console.log('TaskFeed received taskOccurrences:', taskOccurrences);
-  console.log('TaskFeed taskOccurrences length:', taskOccurrences?.length);
   
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];

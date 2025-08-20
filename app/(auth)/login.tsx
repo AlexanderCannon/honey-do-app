@@ -13,61 +13,7 @@ export default function LoginScreen() {
   const { login } = useAuth();
   const { showSuccess, showError } = useToast();
 
-  const testApiConnection = async () => {
-    try {
-      setIsLoading(true);
-      const response = await fetch('http://localhost:4000/api/v1/healthz');
-      const data = await response.text();
-      console.log('Health check response:', data);
-      showSuccess('API Connected', `Server response: ${data}`);
-    } catch (error: any) {
-      console.error('API test failed:', error);
-      showError('API Test Failed', 'Could not connect to localhost:4000');
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
-  const testMeEndpoint = async () => {
-    try {
-      setIsLoading(true);
-      // First login to get token
-      const loginResponse = await fetch('http://localhost:4000/api/v1/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          email: 'test@example.com',
-          password: 'password123',
-        }),
-      });
-
-      const loginData = await loginResponse.json();
-      console.log('Login response for /me test:', loginData);
-
-      if (loginData.token) {
-        // Now test /me endpoint
-        const meResponse = await fetch('http://localhost:4000/api/v1/me', {
-          headers: {
-            'Authorization': `Bearer ${loginData.token}`,
-            'Content-Type': 'application/json',
-          },
-        });
-
-        console.log('Me response status:', meResponse.status);
-        const meData = await meResponse.text();
-        console.log('Me response data:', meData);
-
-        showSuccess('Me Endpoint Test', `Status: ${meResponse.status}`);
-      }
-    } catch (error: any) {
-      console.error('Me endpoint test failed:', error);
-      showError('Me Endpoint Test Failed', error.toString());
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -78,12 +24,13 @@ export default function LoginScreen() {
     setIsLoading(true);
     try {
       await login({ email, password });
-      // Navigation will be handled automatically by the auth state change
+      // Let the index screen handle navigation based on auth state
+      router.replace('/');
     } catch (error: any) {
-      console.error('Login error:', error);
+      // Show generic error message for security (don't reveal if email exists)
       showError(
         'Login Failed',
-        error.message || 'An error occurred during login'
+        'Your email or password was incorrect. Please try again.'
       );
     } finally {
       setIsLoading(false);
@@ -94,9 +41,9 @@ export default function LoginScreen() {
     router.push('/(auth)/register');
   };
 
-    return (
+  return (
     <Screen scrollable keyboardAvoiding>
-      <Header 
+      <Header
         title="🍯 Honey Do"
         subtitle="Welcome back! Sign in to your account"
       />
@@ -139,24 +86,6 @@ export default function LoginScreen() {
         variant="outline"
         disabled={isLoading}
         style={{ marginBottom: 16 }}
-      />
-
-      <Button
-        title="Test API Connection"
-        onPress={testApiConnection}
-        variant="ghost"
-        size="small"
-        disabled={isLoading}
-        style={{ marginBottom: 8 }}
-      />
-
-      <Button
-        title="Test /me Endpoint"
-        onPress={testMeEndpoint}
-        variant="ghost"
-        size="small"
-        disabled={isLoading}
-        style={{ marginBottom: 40 }}
       />
 
       <Text style={styles.footerText}>

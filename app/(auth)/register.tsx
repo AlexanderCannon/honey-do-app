@@ -57,10 +57,9 @@ export default function RegisterScreen() {
         email: formData.email,
         password: formData.password,
       });
-      
+
       // Show success message and navigate to family setup for new users
       showSuccess('Welcome!', 'Account created successfully! Let\'s set up your household.');
-      console.log('Registration successful, navigating to family setup...');
       router.replace('/(auth)/family-setup');
     } catch (error: any) {
       console.error('Registration error:', error);

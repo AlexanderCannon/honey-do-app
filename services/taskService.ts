@@ -108,8 +108,6 @@ export class TaskService {
       assigned_to?: string;
     }
   ): Promise<PaginatedResponse<TaskOccurrence>> {
-    console.log('getTaskFeed called with:', { householdId, options });
-    
     const params = new URLSearchParams();
     if (options?.limit) params.append('limit', options.limit.toString());
     if (options?.cursor) params.append('cursor', options.cursor);
@@ -117,10 +115,8 @@ export class TaskService {
 
     const queryString = params.toString();
     const url = `/households/${householdId}/task-occurrences/feed${queryString ? `?${queryString}` : ''}`;
-    console.log('getTaskFeed URL:', url);
     
     const phoenixResponse = await apiClient.get<PhoenixOccurrencesResponse>(url);
-    console.log('getTaskFeed phoenixResponse:', phoenixResponse);
     
     // Map Phoenix response to expected format
     return {

@@ -66,30 +66,59 @@ export function TaskCard({
       const today = new Date();
       const isToday = dueDate.toDateString() === today.toDateString();
       const isTomorrow = dueDate.toDateString() === new Date(today.getTime() + 24 * 60 * 60 * 1000).toDateString();
-      
-      const timeStr = dueDate.toLocaleTimeString('en-US', {
-        hour: 'numeric',
-        minute: '2-digit',
-        hour12: true,
-      });
-      
-      if (isToday) return `Today at ${timeStr}`;
-      if (isTomorrow) return `Tomorrow at ${timeStr}`;
-      
-      return dueDate.toLocaleDateString('en-US', {
-        weekday: 'short',
-        month: 'short',
-        day: 'numeric',
-        hour: 'numeric',
-        minute: '2-digit',
-        hour12: true,
-      });
+
+      // Check if this is the default "11:59 PM" time (no specific time set)
+      const isDefaultTime = dueDate.getHours() === 23 && dueDate.getMinutes() === 59;
+
+      if (isToday) {
+        if (isDefaultTime) {
+          return 'Today';
+        } else {
+          const timeStr = dueDate.toLocaleTimeString('en-US', {
+            hour: 'numeric',
+            minute: '2-digit',
+            hour12: true,
+          });
+          return `Today by ${timeStr}`;
+        }
+      }
+
+      if (isTomorrow) {
+        if (isDefaultTime) {
+          return 'Tomorrow';
+        } else {
+          const timeStr = dueDate.toLocaleTimeString('en-US', {
+            hour: 'numeric',
+            minute: '2-digit',
+            hour12: true,
+          });
+          return `Tomorrow by ${timeStr}`;
+        }
+      }
+
+      // For other dates
+      if (isDefaultTime) {
+        return dueDate.toLocaleDateString('en-US', {
+          weekday: 'short',
+          month: 'short',
+          day: 'numeric',
+        });
+      } else {
+        return dueDate.toLocaleDateString('en-US', {
+          weekday: 'short',
+          month: 'short',
+          day: 'numeric',
+          hour: 'numeric',
+          minute: '2-digit',
+          hour12: true,
+        });
+      }
     }
-    
+
     if (displayTask.due_time) {
       return `Due at ${displayTask.due_time}`;
     }
-    
+
     return null;
   };
 
@@ -150,7 +179,11 @@ export function TaskCard({
             )}
             {formatDueTime() && (
               <Text style={[styles.dueTime, { color: getStatusColor() }]}>
-                🕒 {formatDueTime()}
+                {taskOccurrence?.due_at && (() => {
+                  const dueDate = new Date(taskOccurrence.due_at);
+                  const isDefaultTime = dueDate.getHours() === 23 && dueDate.getMinutes() === 59;
+                  return isDefaultTime ? '📅' : '🕒';
+                })() || '🕒'} {formatDueTime()}
               </Text>
             )}
           </View>

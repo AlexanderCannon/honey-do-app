@@ -100,6 +100,36 @@ export class TaskService {
     };
   }
 
+  async getTaskFeed(
+    householdId: string,
+    options?: {
+      limit?: number;
+      cursor?: string;
+      assigned_to?: string;
+    }
+  ): Promise<PaginatedResponse<TaskOccurrence>> {
+    console.log('getTaskFeed called with:', { householdId, options });
+    
+    const params = new URLSearchParams();
+    if (options?.limit) params.append('limit', options.limit.toString());
+    if (options?.cursor) params.append('cursor', options.cursor);
+    if (options?.assigned_to) params.append('assigned_to', options.assigned_to);
+
+    const queryString = params.toString();
+    const url = `/households/${householdId}/task-occurrences/feed${queryString ? `?${queryString}` : ''}`;
+    console.log('getTaskFeed URL:', url);
+    
+    const phoenixResponse = await apiClient.get<PhoenixOccurrencesResponse>(url);
+    console.log('getTaskFeed phoenixResponse:', phoenixResponse);
+    
+    // Map Phoenix response to expected format
+    return {
+      data: phoenixResponse.occurrences,
+      has_more: !!phoenixResponse.next_cursor,
+      cursor: phoenixResponse.next_cursor,
+    };
+  }
+
   async completeTaskOccurrence(occurrenceId: string): Promise<TaskOccurrence> {
     const response = await apiClient.patch<{ occurrence: TaskOccurrence }>(
       `/task-occurrences/${occurrenceId}/complete`,

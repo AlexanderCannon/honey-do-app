@@ -1,5 +1,5 @@
 import { Button, Header, Screen } from '@/components/ui/common';
-import { TaskCard, TaskFilters, TaskFilterType } from '@/components/ui/tasks';
+import { TaskCard, TaskFilters, TaskFilterType, TaskFeed } from '@/components/ui/tasks';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { TaskOccurrence } from '@/types';
@@ -13,7 +13,7 @@ export default function TasksScreen() {
   const { showError } = useToast();
 
   const [taskOccurrences, setTaskOccurrences] = useState<TaskOccurrence[]>([]);
-  const [selectedFilter, setSelectedFilter] = useState<TaskFilterType>('pending');
+  const [selectedFilter, setSelectedFilter] = useState<TaskFilterType>('all');
   const [isLoading, setIsLoading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
@@ -33,6 +33,13 @@ export default function TasksScreen() {
       let response;
 
       switch (selectedFilter) {
+        case 'all':
+          console.log('Calling getTaskFeed for combined view');
+          console.log('Household ID:', householdId);
+          console.log('User ID:', user?.id);
+          response = await taskService.getTaskFeed(householdId);
+          console.log('Feed response:', response);
+          break;
         case 'my-tasks':
           console.log(`Calling getMyTaskOccurrences for user ${user?.id}`);
           response = await taskService.getMyTaskOccurrences(householdId, user?.id || '', 'pending');
@@ -49,7 +56,6 @@ export default function TasksScreen() {
           console.log('Calling getTaskOccurrences with status: overdue');
           response = await taskService.getTaskOccurrences(householdId, { status: 'overdue' });
           break;
-        case 'all':
         default:
           console.log('Calling getTaskOccurrences with no filter (all tasks)');
           response = await taskService.getTaskOccurrences(householdId);
@@ -60,6 +66,7 @@ export default function TasksScreen() {
       const taskData = response.data;
       console.log('Extracted task data:', taskData);
       console.log('Task data length:', Array.isArray(taskData) ? taskData.length : 'not array');
+
 
       setTaskOccurrences(Array.isArray(taskData) ? taskData : []);
     } catch (error: any) {
@@ -83,12 +90,20 @@ export default function TasksScreen() {
 
   const handleCompleteTask = useCallback(async (occurrenceId: string) => {
     try {
+      console.log('Completing task occurrence:', occurrenceId);
       await taskService.completeTaskOccurrence(occurrenceId);
+      console.log('Task completed successfully, refreshing list...');
       // Refresh the list to show updated state
       loadTaskOccurrences();
     } catch (error: any) {
       console.error('Failed to complete task:', error);
-      showError('Task Error', 'Failed to complete task. Please try again.');
+      
+      // Check if it's a duplicate completion error
+      if (error?.response?.data?.errors?.task_occurrence_id) {
+        showError('Task Already Completed', 'This task has already been completed.');
+      } else {
+        showError('Task Error', 'Failed to complete task. Please try again.');
+      }
     }
   }, [showError, loadTaskOccurrences]);
 
@@ -200,25 +215,35 @@ export default function TasksScreen() {
         showMyTasks={true}
       />
 
-      <FlatList
-        data={taskOccurrences}
-        renderItem={renderTaskOccurrence}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.listContent}
-        refreshControl={
-          <RefreshControl
-            refreshing={isRefreshing}
-            onRefresh={handleRefresh}
-          />
-        }
-        ListEmptyComponent={!isLoading ? renderEmptyState : null}
-        showsVerticalScrollIndicator={false}
-        onLayout={() => {
-          console.log('FlatList onLayout - taskOccurrences length:', taskOccurrences.length);
-          console.log('FlatList onLayout - taskOccurrences data:', taskOccurrences);
-          console.log('FlatList onLayout - isLoading:', isLoading);
-        }}
-      />
+      {selectedFilter === 'all' ? (
+        <TaskFeed
+          taskOccurrences={taskOccurrences}
+          onCompleteTask={handleCompleteTask}
+          onReopenTask={handleReopenTask}
+          onRefresh={handleRefresh}
+          isRefreshing={isRefreshing}
+        />
+      ) : (
+        <FlatList
+          data={taskOccurrences}
+          renderItem={renderTaskOccurrence}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.listContent}
+          refreshControl={
+            <RefreshControl
+              refreshing={isRefreshing}
+              onRefresh={handleRefresh}
+            />
+          }
+          ListEmptyComponent={!isLoading ? renderEmptyState : null}
+          showsVerticalScrollIndicator={false}
+          onLayout={() => {
+            console.log('FlatList onLayout - taskOccurrences length:', taskOccurrences.length);
+            console.log('FlatList onLayout - taskOccurrences data:', taskOccurrences);
+            console.log('FlatList onLayout - isLoading:', isLoading);
+          }}
+        />
+      )}
     </Screen>
   );
 }

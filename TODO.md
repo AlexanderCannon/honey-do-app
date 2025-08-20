@@ -16,6 +16,10 @@ Honey Do transforms the most boring part of life—managing household responsibi
 
 ---
 
+## Todos
+[] login doesn't properly redirect
+[] If the time is 11:59, can we hide it? and can we say by not at, it's a due date not a start date
+
 ## Feature Implementation Guide
 
 A comprehensive guide to complete the Honey Do app (gamified household management), aligned to the HoneyDo API and server implementation.

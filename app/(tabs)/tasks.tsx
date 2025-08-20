@@ -4,6 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { TaskOccurrence } from '@/types';
 import { taskService } from '@/services/taskService';
+import { router, useFocusEffect } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
 import { FlatList, RefreshControl, StyleSheet, Text, View } from 'react-native';
 
@@ -95,13 +96,19 @@ export default function TasksScreen() {
       return;
     }
     // Navigate to create task screen
-    // TODO: Implement navigation when create-task screen is ready
-    console.log('🚧 Navigate to create task screen');
+    router.push('/create-task');
   }, [isParent, showError]);
 
   useEffect(() => {
     loadTaskOccurrences();
   }, [loadTaskOccurrences]);
+
+  // Refresh data when screen comes into focus (e.g., returning from create-task)
+  useFocusEffect(
+    useCallback(() => {
+      loadTaskOccurrences();
+    }, [loadTaskOccurrences])
+  );
 
   if (!activeHousehold) {
     return (

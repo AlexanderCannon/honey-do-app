@@ -34,6 +34,13 @@ export default function RootLayout() {
                 presentation: 'modal'
               }} 
             />
+            <Stack.Screen 
+              name="create-task" 
+              options={{ 
+                headerShown: false,
+                presentation: 'modal'
+              }} 
+            />
             <Stack.Screen name="+not-found" />
           </Stack>
           <StatusBar style="auto" />

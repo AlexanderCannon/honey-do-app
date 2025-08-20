@@ -108,6 +108,19 @@ export interface PaginatedResponse<T> {
   cursor?: string;
 }
 
+// Phoenix API specific response types
+export interface PhoenixTasksResponse {
+  tasks: Task[];
+  next_cursor?: string;
+  limit?: number;
+}
+
+export interface PhoenixOccurrencesResponse {
+  occurrences: TaskOccurrence[];
+  next_cursor?: string;
+  limit?: number;
+}
+
 export interface UserWithHouseholds {
   user: User;
   households: HouseholdMembership[]; // API returns simple array, not paginated response

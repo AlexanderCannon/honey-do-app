@@ -1,19 +1,10 @@
 import { apiClient } from '@/lib/apiClient';
-import { Event } from '@/types';
-
-export interface CreateEventRequest {
-  title: string;
-  description?: string;
-  starts_at: string;
-  ends_at: string;
-  type: 'birthday' | 'appointment' | 'other';
-  rrule?: string;
-}
+import { Event, CreateEventRequest } from '@/types';
 
 export interface UpdateEventRequest extends Partial<CreateEventRequest> {}
 
 export class EventService {
-  // List events for a date range
+  // List events for a date range - now returns expanded occurrences
   async getEvents(
     householdId: string,
     fromDate: string,
@@ -27,25 +18,31 @@ export class EventService {
     return response.events;
   }
 
-  // Get a single event
+  // Get a single event occurrence
   async getEvent(eventId: string): Promise<Event> {
     const response = await apiClient.get<{ event: Event }>(`/events/${eventId}`);
     return response.event;
   }
 
-  // Create a new event
+  // Create a new event series
   async createEvent(householdId: string, eventData: CreateEventRequest): Promise<Event> {
-    const response = await apiClient.post<{ event: Event }>(`/households/${householdId}/events`, eventData);
+    // Transform data for backend - it expects EventSeries creation
+    const backendData = {
+      ...eventData,
+      household_id: householdId
+    };
+    
+    const response = await apiClient.post<{ event: Event }>(`/households/${householdId}/events`, backendData);
     return response.event;
   }
 
-  // Update an existing event
+  // Update an existing event series
   async updateEvent(eventId: string, eventData: UpdateEventRequest): Promise<Event> {
     const response = await apiClient.patch<{ event: Event }>(`/events/${eventId}`, eventData);
     return response.event;
   }
 
-  // Delete an event
+  // Delete an event series
   async deleteEvent(eventId: string): Promise<void> {
     await apiClient.delete(`/events/${eventId}`);
   }
@@ -62,8 +59,19 @@ export class EventService {
     const fromDate = startDate.toISOString();
     const toDate = endDate.toISOString();
     
-    console.log('Getting events for month:', year, month, 'from:', fromDate, 'to:', toDate);
-    console.log('Start date:', startDate.toLocaleDateString(), 'End date:', endDate.toLocaleDateString());
+    return this.getEvents(householdId, fromDate, toDate);
+  }
+
+  // Get events for a specific day
+  async getEventsForDay(householdId: string, date: Date): Promise<Event[]> {
+    const startOfDay = new Date(date);
+    startOfDay.setHours(0, 0, 0, 0);
+    
+    const endOfDay = new Date(date);
+    endOfDay.setHours(23, 59, 59, 999);
+    
+    const fromDate = startOfDay.toISOString();
+    const toDate = endOfDay.toISOString();
     
     return this.getEvents(householdId, fromDate, toDate);
   }

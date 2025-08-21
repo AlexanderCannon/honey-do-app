@@ -1,10 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, Text, View, TouchableOpacity, Modal, TouchableWithoutFeedback } from 'react-native';
+import { StyleSheet, Text, View, TouchableOpacity, Modal, TouchableWithoutFeedback, ScrollView } from 'react-native';
 import { Button, Input, Screen } from '@/components/ui/common';
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
-import { Event } from '@/types';
-import { CreateEventRequest } from '@/services/eventService';
+import { Event, CreateEventRequest } from '@/types';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Picker } from '@react-native-picker/picker';
 
@@ -47,31 +46,56 @@ export function EventForm({
     };
   };
 
+  const getDefaultDates = () => {
+    const today = new Date();
+    return {
+      start_date: today.toISOString().split('T')[0],
+      end_date: today.toISOString().split('T')[0],
+    };
+  };
+
+  const [isAllDay, setIsAllDay] = useState(false);
+  const [isMultiDay, setIsMultiDay] = useState(false);
+  const [isRecurring, setIsRecurring] = useState(false);
   const [formData, setFormData] = useState<CreateEventRequest>({
     title: '',
     description: '',
     starts_at: getDefaultTimes().starts_at,
     ends_at: getDefaultTimes().ends_at,
-    type: 'other',
   });
 
-  const [isAllDay, setIsAllDay] = useState(false);
-  const [repeatAnnually, setRepeatAnnually] = useState(false);
   const [showStartPicker, setShowStartPicker] = useState(false);
   const [showEndPicker, setShowEndPicker] = useState(false);
-  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showStartDatePicker, setShowStartDatePicker] = useState(false);
+  const [showEndDatePicker, setShowEndDatePicker] = useState(false);
+  const [showTypePicker, setShowTypePicker] = useState(false);
+  const [showRecurrencePicker, setShowRecurrencePicker] = useState(false);
   const [endTimeManuallySet, setEndTimeManuallySet] = useState(false);
-
 
   useEffect(() => {
     if (initialData) {
+      // Determine if all-day based on initial data
+      const allDay = Boolean(initialData.start_date && initialData.end_date);
+      setIsAllDay(allDay);
+      
+      // Check if multi-day
+      if (allDay && initialData.start_date && initialData.end_date) {
+        const startDate = new Date(initialData.start_date);
+        const endDate = new Date(initialData.end_date);
+        setIsMultiDay(startDate.getTime() !== endDate.getTime());
+      }
+      
+      setIsRecurring(Boolean(initialData.rrule));
       setFormData({
         title: initialData.title || '',
         description: initialData.description || '',
-        starts_at: initialData.starts_at || new Date().toISOString(),
-        ends_at: initialData.ends_at || new Date(Date.now() + 60 * 60 * 1000).toISOString(),
-        type: (initialData.type as 'birthday' | 'appointment' | 'other') || 'other',
+        type: initialData.type,
+        starts_at: initialData.starts_at,
+        ends_at: initialData.ends_at,
+        start_date: initialData.start_date,
+        end_date: initialData.end_date,
         rrule: initialData.rrule,
+        timezone: initialData.timezone || 'UTC',
       });
     }
   }, [initialData]);
@@ -82,9 +106,9 @@ export function EventForm({
       
       // If start time is being updated and end time hasn't been manually set,
       // automatically adjust the end time to maintain the same duration
-      if (field === 'starts_at' && !endTimeManuallySet) {
-        const oldStartTime = new Date(prev.starts_at);
-        const oldEndTime = new Date(prev.ends_at);
+      if (field === 'starts_at' && !endTimeManuallySet && !isAllDay) {
+        const oldStartTime = new Date(prev.starts_at || '');
+        const oldEndTime = new Date(prev.ends_at || '');
         const duration = oldEndTime.getTime() - oldStartTime.getTime();
         
         const newStartTime = new Date(value);
@@ -97,340 +121,520 @@ export function EventForm({
     });
   };
 
+  const handleAllDayToggle = (allDay: boolean) => {
+    setIsAllDay(allDay);
+    
+    if (allDay) {
+      // Switch to all-day mode
+      const defaultDates = getDefaultDates();
+      setFormData(prev => ({
+        ...prev,
+        start_date: defaultDates.start_date,
+        end_date: defaultDates.end_date,
+        // Clear scheduled times
+        starts_at: undefined,
+        ends_at: undefined,
+      }));
+      setIsMultiDay(false);
+    } else {
+      // Switch to scheduled mode
+      const defaultTimes = getDefaultTimes();
+      setFormData(prev => ({
+        ...prev,
+        starts_at: defaultTimes.starts_at,
+        ends_at: defaultTimes.ends_at,
+        // Clear all-day dates
+        start_date: undefined,
+        end_date: undefined,
+      }));
+      setIsMultiDay(false);
+    }
+  };
+
+  const handleMultiDayToggle = (multiDay: boolean) => {
+    setIsMultiDay(multiDay);
+    
+    if (multiDay && isAllDay) {
+      // Set end date to tomorrow
+      const startDate = new Date(formData.start_date || new Date());
+      const endDate = new Date(startDate);
+      endDate.setDate(endDate.getDate() + 1);
+      
+      setFormData(prev => ({
+        ...prev,
+        end_date: endDate.toISOString().split('T')[0],
+      }));
+    } else if (!multiDay && isAllDay) {
+      // Set end date same as start date
+      setFormData(prev => ({
+        ...prev,
+        end_date: prev.start_date,
+      }));
+    }
+  };
+
   const validateForm = (): boolean => {
     if (!formData.title.trim()) {
       return false;
     }
-    if (!formData.starts_at) {
-      return false;
-    }
-    if (!isAllDay) {
-      if (!formData.ends_at) {
+
+    if (isAllDay) {
+      if (!formData.start_date || !formData.end_date) {
         return false;
       }
-      const startDate = new Date(formData.starts_at);
-      const endDate = new Date(formData.ends_at);
-      if (endDate <= startDate) {
+      const startDate = new Date(formData.start_date);
+      const endDate = new Date(formData.end_date);
+      return endDate >= startDate;
+    } else {
+      if (!formData.starts_at || !formData.ends_at) {
         return false;
       }
+      const startTime = new Date(formData.starts_at);
+      const endTime = new Date(formData.ends_at);
+      return endTime > startTime;
     }
-    return true;
   };
 
   const handleSubmit = async () => {
     if (!validateForm()) {
       return;
     }
-    
-    // Prepare the data to submit
-    const submitData = { ...formData };
-    
-    // Handle all-day events
+
+    // Prepare the data based on the all-day setting and recurrence
+    const submitData: CreateEventRequest = {
+      title: formData.title,
+      description: formData.description,
+      type: formData.type,
+      timezone: formData.timezone || 'UTC',
+    };
+
     if (isAllDay) {
-      const startDate = new Date(formData.starts_at);
-      // Set start time to beginning of day
-      startDate.setHours(0, 0, 0, 0);
-      // Set end time to end of day
-      const endDate = new Date(startDate);
-      endDate.setHours(23, 59, 59, 999);
-      
-      submitData.starts_at = startDate.toISOString();
-      submitData.ends_at = endDate.toISOString();
+      submitData.start_date = formData.start_date;
+      submitData.end_date = formData.end_date;
+    } else {
+      submitData.starts_at = formData.starts_at;
+      submitData.ends_at = formData.ends_at;
     }
-    
-    // Handle annual repeat
-    if (repeatAnnually) {
-      submitData.rrule = 'FREQ=YEARLY';
+
+    // Add recurrence if enabled
+    if (isRecurring && formData.rrule) {
+      submitData.rrule = formData.rrule;
     }
-    
+
     await onSubmit(submitData);
   };
 
-  const formatDateTime = (isoString: string) => {
+  const formatTime = (isoString: string | undefined): string => {
+    if (!isoString) return '';
     const date = new Date(isoString);
-    return date.toLocaleString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true,
-    });
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
-  const getEventTypeColor = (type: string) => {
+  const formatDate = (isoString: string | undefined): string => {
+    if (!isoString) return '';
+    const date = new Date(isoString);
+    return date.toLocaleDateString();
+  };
+
+  const getEventTypeLabel = (type: string | undefined): string => {
     switch (type) {
-      case 'birthday':
-        return '#FF6B6B';
-      case 'appointment':
-        return '#4ECDC4';
-      case 'other':
-        return '#45B7D1';
-      default:
-        return '#45B7D1';
+      case 'meeting': return 'Meeting';
+      case 'appointment': return 'Appointment';
+      case 'reminder': return 'Reminder';
+      case 'birthday': return 'Birthday';
+      case 'anniversary': return 'Anniversary';
+      case 'holiday': return 'Holiday';
+      case 'travel': return 'Travel';
+      case 'other': return 'Other';
+      default: return 'Select type...';
     }
   };
 
-  return (
-    <Screen scrollable keyboardAvoiding style={style}>
-      <View style={styles.container}>
-        <Text style={[styles.title, { color: colors.text }]}>
-          {initialData ? 'Edit Event' : 'Create Event'}
+  const getRecurrenceLabel = (rrule: string | undefined): string => {
+    switch (rrule) {
+      case 'FREQ=YEARLY': return 'Yearly';
+      case 'FREQ=MONTHLY': return 'Monthly';
+      case 'FREQ=WEEKLY': return 'Weekly';
+      case 'FREQ=DAILY': return 'Daily';
+      default: return 'Select recurrence...';
+    }
+  };
+
+  const renderScheduledFields = () => (
+    <View style={styles.section}>
+      <Text style={{ ...styles.sectionTitle, color: colors.text }}>Time</Text>
+      
+      <TouchableOpacity
+        style={{ ...styles.timeField, borderColor: colors.border }}
+        onPress={() => setShowStartPicker(true)}
+      >
+        <Text style={{ ...styles.timeLabel, color: colors.text }}>Start Time</Text>
+        <Text style={{ ...styles.timeValue, color: colors.text }}>
+          {formatTime(formData.starts_at)}
         </Text>
+      </TouchableOpacity>
 
-        <Input
-          label="Event Title"
-          value={formData.title}
-          onChangeText={(value) => updateFormData('title', value)}
-          placeholder="Enter event title"
-          required
-        />
+      <TouchableOpacity
+        style={{ ...styles.timeField, borderColor: colors.border }}
+        onPress={() => setShowEndPicker(true)}
+      >
+        <Text style={{ ...styles.timeLabel, color: colors.text }}>End Time</Text>
+        <Text style={{ ...styles.timeValue, color: colors.text }}>
+          {formatTime(formData.ends_at)}
+        </Text>
+      </TouchableOpacity>
+    </View>
+  );
 
-        <View style={styles.field}>
-          <Text style={[styles.label, { color: colors.text }]}>
-            Date
+  const renderAllDayFields = () => (
+    <View style={styles.section}>
+      <Text style={{ ...styles.sectionTitle, color: colors.text }}>Date</Text>
+      
+      <TouchableOpacity
+        style={{ ...styles.timeField, borderColor: colors.border }}
+        onPress={() => setShowStartDatePicker(true)}
+      >
+        <Text style={{ ...styles.timeLabel, color: colors.text }}>Start Date</Text>
+        <Text style={{ ...styles.timeValue, color: colors.text }}>
+          {formatDate(formData.start_date)}
+        </Text>
+      </TouchableOpacity>
+
+      {isMultiDay && (
+        <TouchableOpacity
+          style={{ ...styles.timeField, borderColor: colors.border }}
+          onPress={() => setShowEndDatePicker(true)}
+        >
+          <Text style={{ ...styles.timeLabel, color: colors.text }}>End Date</Text>
+          <Text style={{ ...styles.timeValue, color: colors.text }}>
+            {formatDate(formData.end_date)}
           </Text>
-          <Button
-            title={new Date(formData.starts_at).toLocaleDateString('en-US', {
-              weekday: 'long',
-              year: 'numeric',
-              month: 'long',
-              day: 'numeric',
-            })}
-            onPress={() => setShowDatePicker(true)}
-            variant="outline"
-            style={styles.dateButton}
+        </TouchableOpacity>
+      )}
+    </View>
+  );
+
+  return (
+    <Screen style={{ ...styles.container, ...(style as any) }}>
+      <ScrollView style={styles.scrollView}>
+        <View style={styles.header}>
+          <Text style={{ ...styles.title, color: colors.text }}>Create Event</Text>
+        </View>
+
+        {/* Basic Event Info */}
+        <View style={styles.section}>
+          <Text style={{ ...styles.sectionTitle, color: colors.text }}>Event Details</Text>
+          
+          <Input
+            label="Title"
+            value={formData.title}
+            onChangeText={(text) => updateFormData('title', text)}
+            placeholder="Enter event title"
+            style={styles.input}
           />
-        </View>
 
-        <Input
-          label="Description"
-          value={formData.description}
-          onChangeText={(value) => updateFormData('description', value)}
-          placeholder="Enter event description (optional)"
-          multiline
-          numberOfLines={3}
-        />
+          <Input
+            label="Description"
+            value={formData.description}
+            onChangeText={(text) => updateFormData('description', text)}
+            placeholder="Enter event description"
+            multiline
+            style={styles.input}
+          />
 
-        <View style={styles.field}>
-          <Text style={[styles.label, { color: colors.text }]}>
-            Event Type
-          </Text>
-          <View style={[styles.pickerContainer, { borderColor: colors.text + '30' }]}>
-            <Picker
-              selectedValue={formData.type}
-              onValueChange={(value) => updateFormData('type', value)}
-              style={[styles.picker, { color: colors.text }]}
-            >
-              <Picker.Item 
-                label="🎂 Birthday" 
-                value="birthday" 
-                color={getEventTypeColor('birthday')}
-              />
-              <Picker.Item 
-                label="📅 Appointment" 
-                value="appointment" 
-                color={getEventTypeColor('appointment')}
-              />
-              <Picker.Item 
-                label="📝 Other" 
-                value="other" 
-                color={getEventTypeColor('other')}
-              />
-            </Picker>
-          </View>
-        </View>
-
-        <View style={styles.field}>
+          {/* Event Type Picker */}
           <TouchableOpacity
-            style={styles.checkboxContainer}
-            onPress={() => setIsAllDay(!isAllDay)}
+            style={{ ...styles.pickerField, borderColor: colors.border }}
+            onPress={() => setShowTypePicker(true)}
           >
-            <View style={[styles.checkbox, { borderColor: colors.text + '40' }]}>
+            <Text style={{ ...styles.pickerLabel, color: colors.text }}>Event Type</Text>
+            <Text style={{ ...styles.pickerValue, color: colors.text }}>
+              {getEventTypeLabel(formData.type)}
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* All Day Toggle */}
+        <View style={styles.section}>
+          <TouchableOpacity
+            style={styles.toggleContainer}
+            onPress={() => handleAllDayToggle(!isAllDay)}
+          >
+            <View style={[styles.checkbox, { borderColor: colors.border }]}>
               {isAllDay && (
                 <View style={[styles.checkboxInner, { backgroundColor: colors.tint }]} />
               )}
             </View>
-            <Text style={[styles.checkboxLabel, { color: colors.text }]}>
-              All-day event
+            <Text style={{ ...styles.toggleLabel, color: colors.text }}>
+              All Day
             </Text>
           </TouchableOpacity>
         </View>
 
-        {!isAllDay && (
-          <>
-            <View style={styles.field}>
-              <Text style={[styles.label, { color: colors.text }]}>
-                Start Time
+        {/* Multi-day toggle (only for all-day events) */}
+        {isAllDay && (
+          <View style={styles.section}>
+            <TouchableOpacity
+              style={styles.toggleContainer}
+              onPress={() => handleMultiDayToggle(!isMultiDay)}
+            >
+              <View style={[styles.checkbox, { borderColor: colors.border }]}>
+                {isMultiDay && (
+                  <View style={[styles.checkboxInner, { backgroundColor: colors.tint }]} />
+                )}
+              </View>
+              <Text style={{ ...styles.toggleLabel, color: colors.text }}>
+                Multiple Days
               </Text>
-              <Button
-                title={formatDateTime(formData.starts_at)}
-                onPress={() => setShowStartPicker(true)}
-                variant="outline"
-                style={styles.timeButton}
-              />
-            </View>
-
-            <View style={styles.field}>
-              <Text style={[styles.label, { color: colors.text }]}>
-                End Time
-              </Text>
-              <Button
-                title={formatDateTime(formData.ends_at)}
-                onPress={() => setShowEndPicker(true)}
-                variant="outline"
-                style={styles.timeButton}
-              />
-            </View>
-          </>
+            </TouchableOpacity>
+          </View>
         )}
 
-        <View style={styles.field}>
+        {/* Time/Date fields */}
+        {isAllDay ? renderAllDayFields() : renderScheduledFields()}
+
+        {/* Recurrence Toggle */}
+        <View style={styles.section}>
           <TouchableOpacity
-            style={styles.checkboxContainer}
-            onPress={() => setRepeatAnnually(!repeatAnnually)}
+            style={styles.toggleContainer}
+            onPress={() => {
+              const newRecurring = !isRecurring;
+              setIsRecurring(newRecurring);
+              
+              // Set default yearly recurrence when enabling
+              if (newRecurring && !formData.rrule) {
+                updateFormData('rrule', 'FREQ=YEARLY');
+              }
+            }}
           >
-            <View style={[styles.checkbox, { borderColor: colors.text + '40' }]}>
-              {repeatAnnually && (
+            <View style={[styles.checkbox, { borderColor: colors.border }]}>
+              {isRecurring && (
                 <View style={[styles.checkboxInner, { backgroundColor: colors.tint }]} />
               )}
             </View>
-            <Text style={[styles.checkboxLabel, { color: colors.text }]}>
-              Repeat annually
+            <Text style={{ ...styles.toggleLabel, color: colors.text }}>
+              Recurring Event
             </Text>
           </TouchableOpacity>
         </View>
 
+        {/* Recurrence picker (if enabled) */}
+        {isRecurring && (
+          <View style={styles.section}>
+            <TouchableOpacity
+              style={{ ...styles.pickerField, borderColor: colors.border }}
+              onPress={() => setShowRecurrencePicker(true)}
+            >
+              <Text style={{ ...styles.pickerLabel, color: colors.text }}>Recurrence</Text>
+              <Text style={{ ...styles.pickerValue, color: colors.text }}>
+                {getRecurrenceLabel(formData.rrule)}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* Action Buttons */}
         <View style={styles.buttonContainer}>
           <Button
             title="Cancel"
             onPress={onCancel}
-            variant="outline"
-            style={styles.cancelButton}
-            disabled={isLoading}
+            style={{ ...styles.button, ...styles.cancelButton }}
+            textStyle={{ ...styles.buttonText, color: colors.text }}
           />
           <Button
             title={submitLabel}
             onPress={handleSubmit}
             disabled={!validateForm() || isLoading}
-            loading={isLoading}
-            style={styles.submitButton}
+            style={{ ...styles.button, ...styles.submitButton, backgroundColor: colors.tint }}
+            textStyle={{ ...styles.buttonText, color: '#fff' }}
           />
         </View>
+      </ScrollView>
 
-        {/* Date Picker Modal */}
-        <Modal
-          visible={showDatePicker}
-          transparent={true}
-          animationType="fade"
-          onRequestClose={() => setShowDatePicker(false)}
-        >
-          <TouchableWithoutFeedback onPress={() => setShowDatePicker(false)}>
-            <View style={styles.modalOverlay}>
-              <TouchableWithoutFeedback>
-                <View style={[styles.pickerModal, { backgroundColor: colors.background }]}>
-                  <Text style={[styles.pickerTitle, { color: colors.text }]}>Select Date</Text>
-                  <DateTimePicker
-                    value={new Date(formData.starts_at)}
-                    mode="date"
-                    display="spinner"
-                    onChange={(event, selectedDate) => {
-                      if (selectedDate) {
-                        // Preserve the time when changing date
-                        const currentTime = new Date(formData.starts_at);
-                        selectedDate.setHours(currentTime.getHours(), currentTime.getMinutes());
-                        updateFormData('starts_at', selectedDate.toISOString());
-                      }
-                    }}
-                  />
-                  <Button
-                    title="Done"
-                    onPress={() => setShowDatePicker(false)}
-                    style={styles.pickerDoneButton}
-                  />
-                </View>
-              </TouchableWithoutFeedback>
-            </View>
-          </TouchableWithoutFeedback>
-        </Modal>
+      {/* Date/Time Pickers */}
+      {showStartPicker && (
+        <DateTimePicker
+          value={new Date(formData.starts_at || '')}
+          mode="time"
+          onChange={(event, date) => {
+            setShowStartPicker(false);
+            if (date) {
+              updateFormData('starts_at', date.toISOString());
+            }
+          }}
+        />
+      )}
 
-        {/* Start Time Picker Modal */}
-        <Modal
-          visible={showStartPicker}
-          transparent={true}
-          animationType="fade"
-          onRequestClose={() => setShowStartPicker(false)}
-        >
-          <TouchableWithoutFeedback onPress={() => setShowStartPicker(false)}>
-            <View style={styles.modalOverlay}>
-              <TouchableWithoutFeedback>
-                <View style={[styles.pickerModal, { backgroundColor: colors.background }]}>
-                  <Text style={[styles.pickerTitle, { color: colors.text }]}>Select Start Time</Text>
-                  <DateTimePicker
-                    value={new Date(formData.starts_at)}
-                    mode="time"
-                    display="spinner"
-                    onChange={(event, selectedDate) => {
-                      if (selectedDate) {
-                        // Preserve the date when changing time
-                        const currentDate = new Date(formData.starts_at);
-                        selectedDate.setFullYear(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate());
-                        // Round to nearest quarter hour
-                        const roundedTime = getNearestQuarterHour(selectedDate);
-                        updateFormData('starts_at', roundedTime.toISOString());
-                      }
-                    }}
-                  />
-                  <Button
-                    title="Done"
-                    onPress={() => setShowStartPicker(false)}
-                    style={styles.pickerDoneButton}
-                  />
-                </View>
-              </TouchableWithoutFeedback>
-            </View>
-          </TouchableWithoutFeedback>
-        </Modal>
+      {showEndPicker && (
+        <DateTimePicker
+          value={new Date(formData.ends_at || '')}
+          mode="time"
+          onChange={(event, date) => {
+            setShowEndPicker(false);
+            if (date) {
+              updateFormData('ends_at', date.toISOString());
+              setEndTimeManuallySet(true);
+            }
+          }}
+        />
+      )}
 
-        {/* End Time Picker Modal */}
-        <Modal
-          visible={showEndPicker}
-          transparent={true}
-          animationType="fade"
-          onRequestClose={() => setShowEndPicker(false)}
-        >
-          <TouchableWithoutFeedback onPress={() => setShowEndPicker(false)}>
-            <View style={styles.modalOverlay}>
-              <TouchableWithoutFeedback>
-                <View style={[styles.pickerModal, { backgroundColor: colors.background }]}>
-                  <Text style={[styles.pickerTitle, { color: colors.text }]}>Select End Time</Text>
-                  <DateTimePicker
-                    value={new Date(formData.ends_at)}
-                    mode="time"
-                    display="spinner"
-                    onChange={(event, selectedDate) => {
-                      if (selectedDate) {
-                        // Preserve the date when changing time
-                        const currentDate = new Date(formData.ends_at);
-                        selectedDate.setFullYear(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate());
-                        // Round to nearest quarter hour
-                        const roundedTime = getNearestQuarterHour(selectedDate);
-                        updateFormData('ends_at', roundedTime.toISOString());
-                        setEndTimeManuallySet(true);
-                      }
-                    }}
-                  />
-                  <Button
-                    title="Done"
-                    onPress={() => setShowEndPicker(false)}
-                    style={styles.pickerDoneButton}
-                  />
+      {showStartDatePicker && (
+        <DateTimePicker
+          value={new Date(formData.start_date || '')}
+          mode="date"
+          onChange={(event, date) => {
+            setShowStartDatePicker(false);
+            if (date) {
+              const newStartDate = date.toISOString().split('T')[0];
+              updateFormData('start_date', newStartDate);
+              
+              // If not multi-day, update end date to match
+              if (!isMultiDay) {
+                updateFormData('end_date', newStartDate);
+              }
+            }
+          }}
+        />
+      )}
+
+      {showEndDatePicker && (
+        <DateTimePicker
+          value={new Date(formData.end_date || '')}
+          mode="date"
+          onChange={(event, date) => {
+            setShowEndDatePicker(false);
+            if (date) {
+              updateFormData('end_date', date.toISOString().split('T')[0]);
+            }
+          }}
+        />
+      )}
+
+      {/* Event Type Picker Modal */}
+      <Modal
+        visible={showTypePicker}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowTypePicker(false)}
+      >
+        <TouchableWithoutFeedback onPress={() => setShowTypePicker(false)}>
+          <View style={styles.modalOverlay}>
+            <TouchableWithoutFeedback>
+              <View style={[styles.pickerModal, { backgroundColor: colors.background }]}>
+                <Text style={[styles.modalTitle, { color: colors.text }]}>Select Event Type</Text>
+                <View style={styles.pickerModalContent}>
+                                     {[
+                     { label: 'Meeting', value: 'meeting' },
+                     { label: 'Appointment', value: 'appointment' },
+                     { label: 'Reminder', value: 'reminder' },
+                     { label: 'Birthday', value: 'birthday' },
+                     { label: 'Anniversary', value: 'anniversary' },
+                     { label: 'Holiday', value: 'holiday' },
+                     { label: 'Travel', value: 'travel' },
+                     { label: 'Other', value: 'other' },
+                   ].map((option) => (
+                    <TouchableOpacity
+                      key={option.value}
+                      style={[
+                        styles.pickerOption,
+                        { borderColor: colors.border },
+                        formData.type === option.value && { backgroundColor: colors.tint + '20' }
+                      ]}
+                                             onPress={() => {
+                         updateFormData('type', option.value);
+                         
+                         // Auto-configure birthday and anniversary events
+                         if (option.value === 'birthday' || option.value === 'anniversary') {
+                           // Set to all-day
+                           if (!isAllDay) {
+                             handleAllDayToggle(true);
+                           }
+                           
+                           // Enable recurring with yearly frequency
+                           if (!isRecurring) {
+                             setIsRecurring(true);
+                           }
+                           updateFormData('rrule', 'FREQ=YEARLY');
+                         }
+                         
+                         setShowTypePicker(false);
+                       }}
+                    >
+                      <Text style={[
+                        styles.pickerOptionText,
+                        { color: colors.text },
+                        formData.type === option.value && { color: colors.tint, fontWeight: '600' }
+                      ]}>
+                        {option.label}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
                 </View>
-              </TouchableWithoutFeedback>
-            </View>
-          </TouchableWithoutFeedback>
-        </Modal>
-      </View>
+                <Button
+                  title="Cancel"
+                  onPress={() => setShowTypePicker(false)}
+                  style={styles.modalCancelButton}
+                  textStyle={{ color: colors.text }}
+                />
+              </View>
+            </TouchableWithoutFeedback>
+          </View>
+        </TouchableWithoutFeedback>
+      </Modal>
+
+      {/* Recurrence Picker Modal */}
+      <Modal
+        visible={showRecurrencePicker}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowRecurrencePicker(false)}
+      >
+        <TouchableWithoutFeedback onPress={() => setShowRecurrencePicker(false)}>
+          <View style={styles.modalOverlay}>
+            <TouchableWithoutFeedback>
+              <View style={[styles.pickerModal, { backgroundColor: colors.background }]}>
+                <Text style={[styles.modalTitle, { color: colors.text }]}>Select Recurrence</Text>
+                <View style={styles.pickerModalContent}>
+                  {[
+                    { label: 'Yearly', value: 'FREQ=YEARLY' },
+                    { label: 'Monthly', value: 'FREQ=MONTHLY' },
+                    { label: 'Weekly', value: 'FREQ=WEEKLY' },
+                    { label: 'Daily', value: 'FREQ=DAILY' },
+                  ].map((option) => (
+                    <TouchableOpacity
+                      key={option.value}
+                      style={[
+                        styles.pickerOption,
+                        { borderColor: colors.border },
+                        formData.rrule === option.value && { backgroundColor: colors.tint + '20' }
+                      ]}
+                      onPress={() => {
+                        updateFormData('rrule', option.value);
+                        setShowRecurrencePicker(false);
+                      }}
+                    >
+                      <Text style={[
+                        styles.pickerOptionText,
+                        { color: colors.text },
+                        formData.rrule === option.value && { color: colors.tint, fontWeight: '600' }
+                      ]}>
+                        {option.label}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+                <Button
+                  title="Cancel"
+                  onPress={() => setShowRecurrencePicker(false)}
+                  style={styles.modalCancelButton}
+                  textStyle={{ color: colors.text }}
+                />
+              </View>
+            </TouchableWithoutFeedback>
+          </View>
+        </TouchableWithoutFeedback>
+      </Modal>
     </Screen>
   );
 }
@@ -438,42 +642,61 @@ export function EventForm({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 20,
+  },
+  scrollView: {
+    flex: 1,
+    padding: 16,
+  },
+  header: {
+    marginBottom: 24,
   },
   title: {
     fontSize: 24,
     fontWeight: 'bold',
-    marginBottom: 24,
-    textAlign: 'center',
   },
-  field: {
+  section: {
+    marginBottom: 24,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: 12,
+  },
+  input: {
     marginBottom: 16,
   },
-  label: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 8,
-  },
-  pickerContainer: {
+  pickerField: {
     borderWidth: 1,
     borderRadius: 8,
-    overflow: 'hidden',
+    padding: 16,
+    marginBottom: 16,
   },
-  picker: {
-    height: 50,
+  pickerLabel: {
+    fontSize: 14,
+    fontWeight: '500',
+    marginBottom: 4,
   },
-  timeButton: {
-    height: 50,
-    justifyContent: 'center',
+  pickerValue: {
+    fontSize: 16,
   },
-  dateButton: {
-    height: 50,
-    justifyContent: 'center',
+  timeField: {
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 16,
+    marginBottom: 12,
   },
-  checkboxContainer: {
+  timeLabel: {
+    fontSize: 14,
+    fontWeight: '500',
+    marginBottom: 4,
+  },
+  timeValue: {
+    fontSize: 16,
+  },
+  toggleContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 16,
   },
   checkbox: {
     width: 20,
@@ -489,21 +712,9 @@ const styles = StyleSheet.create({
     height: 12,
     borderRadius: 2,
   },
-  checkboxLabel: {
+  toggleLabel: {
     fontSize: 16,
     fontWeight: '500',
-  },
-
-  buttonContainer: {
-    flexDirection: 'row',
-    gap: 12,
-    marginTop: 24,
-  },
-  cancelButton: {
-    flex: 1,
-  },
-  submitButton: {
-    flex: 1,
   },
   modalOverlay: {
     flex: 1,
@@ -516,22 +727,51 @@ const styles = StyleSheet.create({
     padding: 20,
     margin: 20,
     minWidth: 300,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
+    maxHeight: '80%',
   },
-  pickerTitle: {
+  modalTitle: {
     fontSize: 18,
     fontWeight: '600',
     textAlign: 'center',
     marginBottom: 16,
   },
-  pickerDoneButton: {
-    marginTop: 16,
+  pickerModalContent: {
+    marginBottom: 16,
+  },
+  pickerOption: {
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 16,
+    marginBottom: 8,
+  },
+  pickerOptionText: {
+    fontSize: 16,
+    textAlign: 'center',
+  },
+  modalCancelButton: {
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+  },
+  buttonContainer: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 24,
+  },
+  button: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  cancelButton: {
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+  },
+  submitButton: {
+    borderWidth: 0,
+  },
+  buttonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    textAlign: 'center',
   },
 });

@@ -37,34 +37,40 @@ export default function CalendarScreen() {
     try {
       setIsLoading(true);
       const monthEvents = await eventService.getEventsForMonth(activeHousehold.id, year, month);
-      console.log('Loaded events for month:', monthEvents);
       setEvents(monthEvents);
 
             // Create marked dates for calendar dots
       const marked: any = {};
       
-      // Add original events
+      // Add events to calendar dots
       monthEvents.forEach(event => {
-        const eventDate = new Date(event.starts_at);
-        const dateString = eventDate.toISOString().split('T')[0];
-        console.log('Event date:', event.title, 'starts_at:', event.starts_at, 'dateString:', dateString);
-        
-        if (!marked[dateString]) {
-          marked[dateString] = { marked: true, dotColor: getEventTypeColor(event.type) };
+        if (event.is_all_day) {
+          // For all-day events, mark all dates in the range
+          if (event.start_date && event.end_date) {
+            const startDate = new Date(event.start_date);
+            const endDate = new Date(event.end_date);
+            
+            for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
+              const dateString = d.toISOString().split('T')[0];
+              if (!marked[dateString]) {
+                marked[dateString] = { marked: true, dotColor: getEventTypeColor(event.type) };
+              }
+            }
+          }
+        } else {
+          // For timed events, mark the start date
+          if (event.starts_at) {
+            const eventDate = new Date(event.starts_at);
+            const dateString = eventDate.toISOString().split('T')[0];
+            
+            if (!marked[dateString]) {
+              marked[dateString] = { marked: true, dotColor: getEventTypeColor(event.type) };
+            }
+          }
         }
       });
       
-      // Add recurring events
-      const recurringEvents = generateRecurringEvents(monthEvents, year, month);
-      recurringEvents.forEach(event => {
-        const eventDate = new Date(event.starts_at);
-        const dateString = eventDate.toISOString().split('T')[0];
-        console.log('Recurring event date:', event.title, 'starts_at:', event.starts_at, 'dateString:', dateString);
-        
-        if (!marked[dateString]) {
-          marked[dateString] = { marked: true, dotColor: getEventTypeColor(event.type) };
-        }
-      });
+
 
       // Add selected date highlighting
       const selectedDateString = selectedDate.toISOString().split('T')[0];
@@ -89,117 +95,83 @@ export default function CalendarScreen() {
     }
   }, [activeHousehold?.id, selectedDate, colors.tint]);
 
-  const getEventTypeColor = (type: string | undefined) => {
+  const getEventTypeColor = (type: string | undefined): string => {
+    if (!type) return '#94A3B8';
+    
     switch (type) {
       case 'birthday':
         return '#FF6B6B';
+      case 'anniversary':
+        return '#FF8E8E';
       case 'appointment':
         return '#4ECDC4';
+      case 'meeting':
+        return '#45B7D1';
+      case 'reminder':
+        return '#FFD93D';
+      case 'holiday':
+        return '#6BCF7F';
+      case 'travel':
+        return '#A78BFA';
       case 'other':
-        return '#45B7D1';
+        return '#94A3B8';
       default:
-        return '#45B7D1';
+        return '#94A3B8';
     }
   };
 
-  const generateRecurringEvents = (events: Event[], year: number, month: number): Event[] => {
-    const recurringEvents: Event[] = [];
-    
-    console.log('Generating recurring events for year:', year, 'month:', month);
-    
-    events.forEach(event => {
-      if (event.rrule === 'FREQ=YEARLY') {
-        console.log('Found yearly recurring event:', event.title, 'original date:', event.starts_at);
-        const originalDate = new Date(event.starts_at);
-        const originalMonth = originalDate.getMonth();
-        const originalDay = originalDate.getDate();
-        
-        console.log('Original month:', originalMonth, 'original day:', originalDay, 'target month:', month - 1);
-        
-        // Generate instances for a range of years (current year and a few years around it)
-        const currentYear = new Date().getFullYear();
-        const startYear = currentYear - 2;
-        const endYear = currentYear + 5;
-        
-        console.log('Year range:', startYear, 'to', endYear);
-        
-        for (let y = startYear; y <= endYear; y++) {
-          const targetDate = new Date(y, originalMonth, originalDay);
-          
-          console.log('Checking year:', y, 'target date:', targetDate.toISOString(), 'target month:', targetDate.getMonth(), 'target year:', targetDate.getFullYear());
-          
-          // Check if this instance falls within the current month view
-          if (targetDate.getMonth() === month - 1 && targetDate.getFullYear() === year) {
-            console.log('Month and year match!');
-            // Only add if this is not the original event (different year)
-            if (targetDate.getFullYear() !== originalDate.getFullYear()) {
-              console.log('Year is different from original, adding recurring event');
-              const recurringEvent: Event = {
-                ...event,
-                id: `${event.id}_${y}`, // Create unique ID for this instance
-                starts_at: targetDate.toISOString(),
-                ends_at: new Date(targetDate.getTime() + (new Date(event.ends_at).getTime() - new Date(event.starts_at).getTime())).toISOString(),
-              };
-              recurringEvents.push(recurringEvent);
-              console.log('Generated recurring event:', event.title, 'for year:', y, 'date:', targetDate.toISOString());
-            } else {
-              console.log('Year is same as original, skipping');
-            }
-          } else {
-            console.log('Month or year does not match');
-          }
-        }
-      }
-    });
-    
-    console.log('Total recurring events generated:', recurringEvents.length);
-    return recurringEvents;
-  };
+
 
   const getEventsForSelectedDate = () => {
     const selectedDateString = selectedDate.toISOString().split('T')[0];
-    console.log('Filtering events for date:', selectedDateString);
-    console.log('All events:', events);
     
-    // Generate recurring events for the current month
-    const recurringEvents = generateRecurringEvents(events, currentMonth.getFullYear(), currentMonth.getMonth() + 1);
-    const allEvents = [...events, ...recurringEvents];
-    
-    const filteredEvents = allEvents.filter(event => {
-      const eventDate = new Date(event.starts_at);
-      const eventDateString = eventDate.toISOString().split('T')[0];
-      console.log('Checking event:', event.title, 'eventDateString:', eventDateString, 'matches:', eventDateString === selectedDateString);
-      return eventDateString === selectedDateString;
+    const filteredEvents = events.filter((event: Event) => {
+      if (event.is_all_day) {
+        // For all-day events, check if the selected date falls within the event's date range
+        if (event.start_date && event.end_date) {
+          return selectedDateString >= event.start_date && selectedDateString <= event.end_date;
+        }
+      } else {
+        // For timed events, check if the event starts on the selected date
+        if (event.starts_at) {
+          const eventDate = new Date(event.starts_at);
+          const eventDateString = eventDate.toISOString().split('T')[0];
+          return eventDateString === selectedDateString;
+        }
+      }
+      return false;
     });
-    console.log('Filtered events:', filteredEvents);
+    
     return filteredEvents;
   };
 
-  const formatEventTime = (event: Event) => {
-    const startDate = new Date(event.starts_at);
-    const endDate = new Date(event.ends_at);
-
-    // Check if it's an all-day event (spans full day)
-    const isAllDay = startDate.getHours() === 0 && startDate.getMinutes() === 0 &&
-      endDate.getHours() === 23 && endDate.getMinutes() === 59;
-
-    if (isAllDay) {
+    const formatEventTime = (event: Event) => {
+    // Use the is_all_day field from the backend
+    if (event.is_all_day) {
       return 'All day';
     }
-
-    const startTime = startDate.toLocaleTimeString('en-US', {
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true,
-    });
-
-    const endTime = endDate.toLocaleTimeString('en-US', {
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true,
-    });
-
-    return `${startTime} - ${endTime}`;
+    
+    // For timed events, format the time range
+    if (event.starts_at && event.ends_at) {
+      const startDate = new Date(event.starts_at);
+      const endDate = new Date(event.ends_at);
+      
+      const startTime = startDate.toLocaleTimeString('en-US', {
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true,
+      });
+      
+      const endTime = endDate.toLocaleTimeString('en-US', {
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true,
+      });
+      
+      return `${startTime} - ${endTime}`;
+    }
+    
+    return 'All day'; // Fallback
   };
 
   useEffect(() => {
@@ -208,11 +180,10 @@ export default function CalendarScreen() {
     }
   }, [activeHousehold?.id, currentMonth, loadEventsForMonth]);
 
-  console.log('Calendar render - selectedDate:', selectedDate.toISOString(), 'currentMonth:', currentMonth.toISOString());
+
 
   const handleTodayPress = () => {
     const todayDate = getTodayDate();
-    console.log('Today button pressed, setting date to:', todayDate.toISOString());
     setSelectedDate(todayDate);
     setCurrentMonth(todayDate);
     setCalendarKey(prev => prev + 1);
@@ -257,7 +228,6 @@ export default function CalendarScreen() {
           key={`${currentMonth.getFullYear()}-${currentMonth.getMonth() + 1}-${calendarKey}`}
           current={currentMonth.toISOString().split('T')[0]}
           onMonthChange={(monthData) => {
-            console.log('Month changed to:', monthData);
             const newMonth = new Date(monthData.timestamp);
             setCurrentMonth(newMonth);
             // Reload events for the new month
@@ -266,7 +236,6 @@ export default function CalendarScreen() {
             }
           }}
           onDayPress={(day) => {
-            console.log('Day pressed:', day.dateString, 'timestamp:', day.timestamp);
             // Use the dateString instead of timestamp to avoid timezone issues
             const [year, month, dayOfMonth] = day.dateString.split('-').map(Number);
             const selectedDate = new Date(year, month - 1, dayOfMonth);
@@ -342,7 +311,7 @@ export default function CalendarScreen() {
               {getEventsForSelectedDate().length > 0 ? (
                 <FlatList
                   data={getEventsForSelectedDate()}
-                  keyExtractor={(item) => item.id}
+                  keyExtractor={(item) => item.id || item.series_id}
                   renderItem={({ item }) => (
                     <View style={[styles.eventItem, { borderLeftColor: getEventTypeColor(item.type) }]}>
                       <View style={styles.eventHeader}>

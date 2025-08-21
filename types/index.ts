@@ -69,18 +69,56 @@ export interface TaskOccurrence {
   updated_at: string;
 }
 
-export interface Event {
+// Backend EventSeries structure
+export interface EventSeries {
   id: string;
-  household_id: string;
   title: string;
   description?: string;
-  starts_at: string;
-  ends_at: string;
-  type?: string;
-  rrule?: string;
-  color?: string;
+  type: 'birthday' | 'appointment' | 'other';
+  household_id: string;
+  created_by: string;
   created_at: string;
   updated_at: string;
+  
+  // Mode determines the event type
+  mode: 'timed' | 'allday' | 'recurring';
+  
+  // Timed events (one-off)
+  starts_at?: string;
+  ends_at?: string;
+  
+  // All-day events (spans)
+  start_date?: string;
+  end_date?: string;
+  
+  // Recurrence
+  rrule?: string;
+  rdate?: string[];
+  exdate?: string[];
+  
+  // Metadata
+  timezone?: string;
+  
+  // Generated range columns
+  oneoff_range?: string;
+  allday_range?: string;
+}
+
+// Frontend Event structure (expanded occurrences)
+export interface Event {
+  id?: string;
+  series_id: string;
+  title: string;
+  description?: string;
+  starts_at?: string;
+  ends_at?: string;
+  start_date?: string;
+  end_date?: string;
+  type?: 'birthday' | 'anniversary' | 'appointment' | 'meeting' | 'reminder' | 'holiday' | 'travel' | 'other';
+  is_all_day: boolean;
+  is_override?: boolean;
+  rrule?: string;
+  timezone?: string;
 }
 
 export interface Invite {
@@ -213,10 +251,21 @@ export interface CreateTaskRequest {
 export interface CreateEventRequest {
   title: string;
   description?: string;
-  starts_at: string;
-  ends_at: string;
-  type?: string;
+  type?: 'birthday' | 'anniversary' | 'appointment' | 'meeting' | 'reminder' | 'holiday' | 'travel' | 'other';
+  
+  // Scheduled events (with time)
+  starts_at?: string;
+  ends_at?: string;
+  
+  // All-day events (date spans)
+  start_date?: string;
+  end_date?: string;
+  
+  // Recurrence (modifier for both types)
   rrule?: string;
+  
+  // Metadata
+  timezone?: string;
 }
 
 export interface CreateInviteRequest {

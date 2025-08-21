@@ -21,6 +21,7 @@ _Think Duolingo meets chore chart—where maintaining your home feels like playi
 [x] login doesn't properly redirect
 [x] If the time is 11:59, can we hide it? and can we say by not at, it's a due date not a start date
 [] needs to be fault resistant for bad signal areas, cache offline and queue results
+[] import birthdays from contacts
 
 ## Feature Implementation Guide
 

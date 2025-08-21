@@ -2,7 +2,7 @@ import { Colors } from '@/constants/Colors';
 import { useAuth } from '@/contexts/AuthContext';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Button, Header, Screen } from '@/components/ui/common';
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { Calendar as RNCalendar } from 'react-native-calendars';
 
@@ -12,14 +12,21 @@ export default function CalendarScreen() {
   const colors = Colors[colorScheme ?? 'light'];
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [calendarKey, setCalendarKey] = useState(0);
 
   console.log('Calendar render - selectedDate:', selectedDate.toISOString(), 'currentMonth:', currentMonth.toISOString());
 
   const handleTodayPress = () => {
     const today = new Date();
     console.log('Today button pressed, setting date to:', today.toISOString());
-    setSelectedDate(today);
-    setCurrentMonth(today);
+    // Use the same date parsing approach for consistency
+    const year = today.getFullYear();
+    const month = today.getMonth() + 1; // getMonth() returns 0-11
+    const day = today.getDate();
+    const todayDate = new Date(year, month - 1, day);
+    setSelectedDate(todayDate);
+    setCurrentMonth(todayDate);
+    setCalendarKey(prev => prev + 1);
   };
 
   if (!activeHousehold) {
@@ -56,9 +63,15 @@ export default function CalendarScreen() {
 
       <View style={styles.calendarContainer}>
         <RNCalendar
-          key={currentMonth.toISOString().split('T')[0]}
-          initialDate={currentMonth.toISOString()}
-          onDayPress={(day) => setSelectedDate(new Date(day.timestamp))}
+          key={`${currentMonth.getFullYear()}-${currentMonth.getMonth() + 1}-${calendarKey}`}
+          current={currentMonth.toISOString().split('T')[0]}
+          onDayPress={(day) => {
+            console.log('Day pressed:', day.dateString, 'timestamp:', day.timestamp);
+            // Use the dateString instead of timestamp to avoid timezone issues
+            const [year, month, dayOfMonth] = day.dateString.split('-').map(Number);
+            const selectedDate = new Date(year, month - 1, dayOfMonth);
+            setSelectedDate(selectedDate);
+          }}
           markedDates={{
             [selectedDate.toISOString().split('T')[0]]: {
               selected: true,

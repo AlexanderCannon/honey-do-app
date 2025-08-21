@@ -3,9 +3,11 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Button, Header, Screen } from '@/components/ui/common';
 import { router } from 'expo-router';
-import React, { useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { StyleSheet, Text, View, FlatList, TouchableOpacity } from 'react-native';
 import { Calendar as RNCalendar } from 'react-native-calendars';
+import { eventService } from '@/services/eventService';
+import { Event } from '@/types';
 
 export default function CalendarScreen() {
   const { activeHousehold, getActiveHouseholdName } = useAuth();
@@ -23,8 +25,115 @@ export default function CalendarScreen() {
   const [selectedDate, setSelectedDate] = useState(getTodayDate());
   const [currentMonth, setCurrentMonth] = useState(getTodayDate());
   const [calendarKey, setCalendarKey] = useState(0);
+  const [events, setEvents] = useState<Event[]>([]);
+  const [markedDates, setMarkedDates] = useState<{ [date: string]: any }>({});
+  const [isLoading, setIsLoading] = useState(false);
 
   const isParent = activeHousehold?.role === 'parent';
+
+  const loadEventsForMonth = useCallback(async (year: number, month: number) => {
+    if (!activeHousehold?.id) return;
+
+    try {
+      setIsLoading(true);
+      const monthEvents = await eventService.getEventsForMonth(activeHousehold.id, year, month);
+      console.log('Loaded events for month:', monthEvents);
+      setEvents(monthEvents);
+
+      // Create marked dates for calendar dots
+      const marked: any = {};
+      monthEvents.forEach(event => {
+        const eventDate = new Date(event.starts_at);
+        const dateString = eventDate.toISOString().split('T')[0];
+        console.log('Event date:', event.title, 'starts_at:', event.starts_at, 'dateString:', dateString);
+
+        if (!marked[dateString]) {
+          marked[dateString] = { marked: true, dotColor: getEventTypeColor(event.type) };
+        }
+      });
+
+      // Add selected date highlighting
+      const selectedDateString = selectedDate.toISOString().split('T')[0];
+      if (marked[selectedDateString]) {
+        marked[selectedDateString] = {
+          ...marked[selectedDateString],
+          selected: true,
+          selectedColor: colors.tint,
+        };
+      } else {
+        marked[selectedDateString] = {
+          selected: true,
+          selectedColor: colors.tint,
+        };
+      }
+
+      setMarkedDates(marked);
+    } catch (error) {
+      console.error('Failed to load events:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [activeHousehold?.id, selectedDate, colors.tint]);
+
+  const getEventTypeColor = (type: string | undefined) => {
+    switch (type) {
+      case 'birthday':
+        return '#FF6B6B';
+      case 'appointment':
+        return '#4ECDC4';
+      case 'other':
+        return '#45B7D1';
+      default:
+        return '#45B7D1';
+    }
+  };
+
+  const getEventsForSelectedDate = () => {
+    const selectedDateString = selectedDate.toISOString().split('T')[0];
+    console.log('Filtering events for date:', selectedDateString);
+    console.log('All events:', events);
+    const filteredEvents = events.filter(event => {
+      const eventDate = new Date(event.starts_at);
+      const eventDateString = eventDate.toISOString().split('T')[0];
+      console.log('Checking event:', event.title, 'eventDateString:', eventDateString, 'matches:', eventDateString === selectedDateString);
+      return eventDateString === selectedDateString;
+    });
+    console.log('Filtered events:', filteredEvents);
+    return filteredEvents;
+  };
+
+  const formatEventTime = (event: Event) => {
+    const startDate = new Date(event.starts_at);
+    const endDate = new Date(event.ends_at);
+
+    // Check if it's an all-day event (spans full day)
+    const isAllDay = startDate.getHours() === 0 && startDate.getMinutes() === 0 &&
+      endDate.getHours() === 23 && endDate.getMinutes() === 59;
+
+    if (isAllDay) {
+      return 'All day';
+    }
+
+    const startTime = startDate.toLocaleTimeString('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
+    });
+
+    const endTime = endDate.toLocaleTimeString('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
+    });
+
+    return `${startTime} - ${endTime}`;
+  };
+
+  useEffect(() => {
+    if (activeHousehold?.id) {
+      loadEventsForMonth(currentMonth.getFullYear(), currentMonth.getMonth() + 1);
+    }
+  }, [activeHousehold?.id, currentMonth, loadEventsForMonth]);
 
   console.log('Calendar render - selectedDate:', selectedDate.toISOString(), 'currentMonth:', currentMonth.toISOString());
 
@@ -34,6 +143,10 @@ export default function CalendarScreen() {
     setSelectedDate(todayDate);
     setCurrentMonth(todayDate);
     setCalendarKey(prev => prev + 1);
+    // Reload events for the current month
+    if (activeHousehold?.id) {
+      loadEventsForMonth(todayDate.getFullYear(), todayDate.getMonth() + 1);
+    }
   };
 
   if (!activeHousehold) {
@@ -76,13 +189,34 @@ export default function CalendarScreen() {
             const [year, month, dayOfMonth] = day.dateString.split('-').map(Number);
             const selectedDate = new Date(year, month - 1, dayOfMonth);
             setSelectedDate(selectedDate);
+            // Update marked dates to show selection
+            const selectedDateString = selectedDate.toISOString().split('T')[0];
+            setMarkedDates(prev => {
+              const newMarked = { ...prev };
+              // Remove previous selection
+              Object.keys(newMarked).forEach(date => {
+                if (newMarked[date].selected) {
+                  delete newMarked[date].selected;
+                  delete newMarked[date].selectedColor;
+                }
+              });
+              // Add new selection
+              if (newMarked[selectedDateString]) {
+                newMarked[selectedDateString] = {
+                  ...newMarked[selectedDateString],
+                  selected: true,
+                  selectedColor: colors.tint,
+                };
+              } else {
+                newMarked[selectedDateString] = {
+                  selected: true,
+                  selectedColor: colors.tint,
+                };
+              }
+              return newMarked;
+            });
           }}
-          markedDates={{
-            [selectedDate.toISOString().split('T')[0]]: {
-              selected: true,
-              selectedColor: colors.tint,
-            },
-          }}
+          markedDates={markedDates}
           theme={{
             backgroundColor: colors.background,
             calendarBackground: colors.background,
@@ -115,20 +249,58 @@ export default function CalendarScreen() {
           </Text>
         </View>
         <View style={styles.eventsContent}>
-          <View style={styles.emptyState}>
-            <Text style={[styles.emptyStateText, { color: colors.text + '80' }]}>
-              No events scheduled for this date.
-            </Text>
-            {isParent && (
-              <Button
-                title="+ Add Event"
-                onPress={() => router.push('/create-event')}
-                style={styles.addEventButton}
-              />
-            )}
-          </View>
+          {isLoading ? (
+            <View style={styles.emptyState}>
+              <Text style={[styles.emptyStateText, { color: colors.text + '80' }]}>
+                Loading events...
+              </Text>
+            </View>
+          ) : (
+            <>
+              {getEventsForSelectedDate().length > 0 ? (
+                <FlatList
+                  data={getEventsForSelectedDate()}
+                  keyExtractor={(item) => item.id}
+                  renderItem={({ item }) => (
+                    <View style={[styles.eventItem, { borderLeftColor: getEventTypeColor(item.type) }]}>
+                      <View style={styles.eventHeader}>
+                        <Text style={[styles.eventTitle, { color: colors.text }]}>
+                          {item.title}
+                        </Text>
+                        <Text style={[styles.eventTime, { color: colors.text + '80' }]}>
+                          {formatEventTime(item)}
+                        </Text>
+                      </View>
+                      {item.description && (
+                        <Text style={[styles.eventDescription, { color: colors.text + '80' }]}>
+                          {item.description}
+                        </Text>
+                      )}
+                    </View>
+                  )}
+                  ItemSeparatorComponent={() => <View style={styles.eventSeparator} />}
+                />
+              ) : (
+                <View style={styles.emptyState}>
+                  <Text style={[styles.emptyStateText, { color: colors.text + '80' }]}>
+                    No events scheduled for this date.
+                  </Text>
+                </View>
+              )}
+            </>
+          )}
         </View>
       </View>
+      
+      {/* Floating Action Button */}
+      {isParent && (
+        <TouchableOpacity
+          style={[styles.fab, { backgroundColor: colors.tint }]}
+          onPress={() => router.push('/create-event')}
+        >
+          <Text style={styles.fabText}>+</Text>
+        </TouchableOpacity>
+      )}
     </Screen>
   );
 }
@@ -157,16 +329,14 @@ const styles = StyleSheet.create({
   eventsContent: {
     flex: 1,
   },
-  addEventButton: {
-    marginTop: 16,
-    alignSelf: 'center',
-  },
+
   calendarContainer: {
     marginBottom: 20,
   },
   eventsContainer: {
     flex: 1,
     paddingHorizontal: 20,
+    paddingBottom: 80, // Increased bottom padding to ensure content doesn't get hidden by tab bar
   },
   eventsTitle: {
     fontSize: 18,
@@ -197,6 +367,59 @@ const styles = StyleSheet.create({
     fontSize: 16,
     textAlign: 'center',
     lineHeight: 24,
+  },
+  eventItem: {
+    backgroundColor: 'rgba(0, 0, 0, 0.02)',
+    borderRadius: 8,
+    padding: 12,
+    borderLeftWidth: 4,
+    marginBottom: 8,
+  },
+  eventHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 4,
+  },
+  eventTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    flex: 1,
+    marginRight: 8,
+  },
+  eventTime: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  eventDescription: {
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  eventSeparator: {
+    height: 8,
+  },
+  fab: {
+    position: 'absolute',
+    bottom: 100, // Position above the tab bar
+    right: 20,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+  },
+  fabText: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#ffffff',
   },
 });
 

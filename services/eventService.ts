@@ -53,10 +53,12 @@ export class EventService {
   // Helper method to get events for a specific month
   async getEventsForMonth(householdId: string, year: number, month: number): Promise<Event[]> {
     const startDate = new Date(year, month - 1, 1);
-    const endDate = new Date(year, month, 0); // Last day of the month
+    const endDate = new Date(year, month, 0, 23, 59, 59, 999); // Last day of the month at end of day
     
     const fromDate = startDate.toISOString();
     const toDate = endDate.toISOString();
+    
+    console.log('Getting events for month:', year, month, 'from:', fromDate, 'to:', toDate);
     
     return this.getEvents(householdId, fromDate, toDate);
   }

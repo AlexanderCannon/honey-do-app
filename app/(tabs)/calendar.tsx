@@ -40,13 +40,27 @@ export default function CalendarScreen() {
       console.log('Loaded events for month:', monthEvents);
       setEvents(monthEvents);
 
-      // Create marked dates for calendar dots
+            // Create marked dates for calendar dots
       const marked: any = {};
+      
+      // Add original events
       monthEvents.forEach(event => {
         const eventDate = new Date(event.starts_at);
         const dateString = eventDate.toISOString().split('T')[0];
         console.log('Event date:', event.title, 'starts_at:', event.starts_at, 'dateString:', dateString);
-
+        
+        if (!marked[dateString]) {
+          marked[dateString] = { marked: true, dotColor: getEventTypeColor(event.type) };
+        }
+      });
+      
+      // Add recurring events
+      const recurringEvents = generateRecurringEvents(monthEvents, year, month);
+      recurringEvents.forEach(event => {
+        const eventDate = new Date(event.starts_at);
+        const dateString = eventDate.toISOString().split('T')[0];
+        console.log('Recurring event date:', event.title, 'starts_at:', event.starts_at, 'dateString:', dateString);
+        
         if (!marked[dateString]) {
           marked[dateString] = { marked: true, dotColor: getEventTypeColor(event.type) };
         }
@@ -88,11 +102,70 @@ export default function CalendarScreen() {
     }
   };
 
+  const generateRecurringEvents = (events: Event[], year: number, month: number): Event[] => {
+    const recurringEvents: Event[] = [];
+    
+    console.log('Generating recurring events for year:', year, 'month:', month);
+    
+    events.forEach(event => {
+      if (event.rrule === 'FREQ=YEARLY') {
+        console.log('Found yearly recurring event:', event.title, 'original date:', event.starts_at);
+        const originalDate = new Date(event.starts_at);
+        const originalMonth = originalDate.getMonth();
+        const originalDay = originalDate.getDate();
+        
+        console.log('Original month:', originalMonth, 'original day:', originalDay, 'target month:', month - 1);
+        
+        // Generate instances for a range of years (current year and a few years around it)
+        const currentYear = new Date().getFullYear();
+        const startYear = currentYear - 2;
+        const endYear = currentYear + 5;
+        
+        console.log('Year range:', startYear, 'to', endYear);
+        
+        for (let y = startYear; y <= endYear; y++) {
+          const targetDate = new Date(y, originalMonth, originalDay);
+          
+          console.log('Checking year:', y, 'target date:', targetDate.toISOString(), 'target month:', targetDate.getMonth(), 'target year:', targetDate.getFullYear());
+          
+          // Check if this instance falls within the current month view
+          if (targetDate.getMonth() === month - 1 && targetDate.getFullYear() === year) {
+            console.log('Month and year match!');
+            // Only add if this is not the original event (different year)
+            if (targetDate.getFullYear() !== originalDate.getFullYear()) {
+              console.log('Year is different from original, adding recurring event');
+              const recurringEvent: Event = {
+                ...event,
+                id: `${event.id}_${y}`, // Create unique ID for this instance
+                starts_at: targetDate.toISOString(),
+                ends_at: new Date(targetDate.getTime() + (new Date(event.ends_at).getTime() - new Date(event.starts_at).getTime())).toISOString(),
+              };
+              recurringEvents.push(recurringEvent);
+              console.log('Generated recurring event:', event.title, 'for year:', y, 'date:', targetDate.toISOString());
+            } else {
+              console.log('Year is same as original, skipping');
+            }
+          } else {
+            console.log('Month or year does not match');
+          }
+        }
+      }
+    });
+    
+    console.log('Total recurring events generated:', recurringEvents.length);
+    return recurringEvents;
+  };
+
   const getEventsForSelectedDate = () => {
     const selectedDateString = selectedDate.toISOString().split('T')[0];
     console.log('Filtering events for date:', selectedDateString);
     console.log('All events:', events);
-    const filteredEvents = events.filter(event => {
+    
+    // Generate recurring events for the current month
+    const recurringEvents = generateRecurringEvents(events, currentMonth.getFullYear(), currentMonth.getMonth() + 1);
+    const allEvents = [...events, ...recurringEvents];
+    
+    const filteredEvents = allEvents.filter(event => {
       const eventDate = new Date(event.starts_at);
       const eventDateString = eventDate.toISOString().split('T')[0];
       console.log('Checking event:', event.title, 'eventDateString:', eventDateString, 'matches:', eventDateString === selectedDateString);
@@ -183,6 +256,15 @@ export default function CalendarScreen() {
         <RNCalendar
           key={`${currentMonth.getFullYear()}-${currentMonth.getMonth() + 1}-${calendarKey}`}
           current={currentMonth.toISOString().split('T')[0]}
+          onMonthChange={(monthData) => {
+            console.log('Month changed to:', monthData);
+            const newMonth = new Date(monthData.timestamp);
+            setCurrentMonth(newMonth);
+            // Reload events for the new month
+            if (activeHousehold?.id) {
+              loadEventsForMonth(newMonth.getFullYear(), newMonth.getMonth() + 1);
+            }
+          }}
           onDayPress={(day) => {
             console.log('Day pressed:', day.dateString, 'timestamp:', day.timestamp);
             // Use the dateString instead of timestamp to avoid timezone issues

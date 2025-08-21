@@ -28,11 +28,30 @@ export function EventForm({
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
 
+  const getNearestQuarterHour = (date: Date): Date => {
+    const minutes = date.getMinutes();
+    const roundedMinutes = Math.round(minutes / 15) * 15;
+    const newDate = new Date(date);
+    newDate.setMinutes(roundedMinutes, 0, 0);
+    return newDate;
+  };
+
+  const getDefaultTimes = () => {
+    const now = new Date();
+    const startTime = getNearestQuarterHour(now);
+    const endTime = new Date(startTime);
+    endTime.setHours(endTime.getHours() + 1); // Default 1 hour duration
+    return {
+      starts_at: startTime.toISOString(),
+      ends_at: endTime.toISOString(),
+    };
+  };
+
   const [formData, setFormData] = useState<CreateEventRequest>({
     title: '',
     description: '',
-    starts_at: new Date().toISOString(),
-    ends_at: new Date(Date.now() + 60 * 60 * 1000).toISOString(), // 1 hour later
+    starts_at: getDefaultTimes().starts_at,
+    ends_at: getDefaultTimes().ends_at,
     type: 'other',
   });
 
@@ -41,6 +60,7 @@ export function EventForm({
   const [showStartPicker, setShowStartPicker] = useState(false);
   const [showEndPicker, setShowEndPicker] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [endTimeManuallySet, setEndTimeManuallySet] = useState(false);
 
 
   useEffect(() => {
@@ -57,7 +77,24 @@ export function EventForm({
   }, [initialData]);
 
   const updateFormData = (field: keyof CreateEventRequest, value: any) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    setFormData(prev => {
+      const newData = { ...prev, [field]: value };
+      
+      // If start time is being updated and end time hasn't been manually set,
+      // automatically adjust the end time to maintain the same duration
+      if (field === 'starts_at' && !endTimeManuallySet) {
+        const oldStartTime = new Date(prev.starts_at);
+        const oldEndTime = new Date(prev.ends_at);
+        const duration = oldEndTime.getTime() - oldStartTime.getTime();
+        
+        const newStartTime = new Date(value);
+        const newEndTime = new Date(newStartTime.getTime() + duration);
+        
+        newData.ends_at = newEndTime.toISOString();
+      }
+      
+      return newData;
+    });
   };
 
   const validateForm = (): boolean => {
@@ -338,7 +375,9 @@ export function EventForm({
                         // Preserve the date when changing time
                         const currentDate = new Date(formData.starts_at);
                         selectedDate.setFullYear(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate());
-                        updateFormData('starts_at', selectedDate.toISOString());
+                        // Round to nearest quarter hour
+                        const roundedTime = getNearestQuarterHour(selectedDate);
+                        updateFormData('starts_at', roundedTime.toISOString());
                       }
                     }}
                   />
@@ -374,7 +413,10 @@ export function EventForm({
                         // Preserve the date when changing time
                         const currentDate = new Date(formData.ends_at);
                         selectedDate.setFullYear(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate());
-                        updateFormData('ends_at', selectedDate.toISOString());
+                        // Round to nearest quarter hour
+                        const roundedTime = getNearestQuarterHour(selectedDate);
+                        updateFormData('ends_at', roundedTime.toISOString());
+                        setEndTimeManuallySet(true);
                       }
                     }}
                   />

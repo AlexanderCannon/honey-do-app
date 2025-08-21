@@ -2,7 +2,8 @@ import { Colors } from '@/constants/Colors';
 import { useAuth } from '@/contexts/AuthContext';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Button, Header, Screen } from '@/components/ui/common';
-import React, { useState, useRef } from 'react';
+import { router } from 'expo-router';
+import React, { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { Calendar as RNCalendar } from 'react-native-calendars';
 
@@ -10,20 +11,26 @@ export default function CalendarScreen() {
   const { activeHousehold, getActiveHouseholdName } = useAuth();
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
-  const [selectedDate, setSelectedDate] = useState(new Date());
-  const [currentMonth, setCurrentMonth] = useState(new Date());
+  // Initialize with today's date using the same parsing approach to avoid timezone issues
+  const getTodayDate = () => {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = today.getMonth() + 1; // getMonth() returns 0-11
+    const day = today.getDate();
+    return new Date(year, month - 1, day);
+  };
+
+  const [selectedDate, setSelectedDate] = useState(getTodayDate());
+  const [currentMonth, setCurrentMonth] = useState(getTodayDate());
   const [calendarKey, setCalendarKey] = useState(0);
+
+  const isParent = activeHousehold?.role === 'parent';
 
   console.log('Calendar render - selectedDate:', selectedDate.toISOString(), 'currentMonth:', currentMonth.toISOString());
 
   const handleTodayPress = () => {
-    const today = new Date();
-    console.log('Today button pressed, setting date to:', today.toISOString());
-    // Use the same date parsing approach for consistency
-    const year = today.getFullYear();
-    const month = today.getMonth() + 1; // getMonth() returns 0-11
-    const day = today.getDate();
-    const todayDate = new Date(year, month - 1, day);
+    const todayDate = getTodayDate();
+    console.log('Today button pressed, setting date to:', todayDate.toISOString());
     setSelectedDate(todayDate);
     setCurrentMonth(todayDate);
     setCalendarKey(prev => prev + 1);
@@ -48,11 +55,9 @@ export default function CalendarScreen() {
   return (
     <Screen style={styles.container}>
       <View style={styles.headerContainer}>
-        <Header
-          title="Calendar"
-          subtitle={getActiveHouseholdName()}
-          style={styles.header}
-        />
+        <Text style={[styles.householdName, { color: colors.text }]}>
+          {getActiveHouseholdName()}
+        </Text>
         <Button
           title="Today"
           onPress={handleTodayPress}
@@ -100,17 +105,28 @@ export default function CalendarScreen() {
       </View>
 
       <View style={styles.eventsContainer}>
-        <Text style={[styles.eventsTitle, { color: colors.text }]}>
-          Events for {selectedDate.toLocaleDateString('en-US', {
-            weekday: 'long',
-            month: 'long',
-            day: 'numeric',
-          })}
-        </Text>
-        <View style={styles.emptyState}>
-          <Text style={[styles.emptyStateText, { color: colors.text + '80' }]}>
-            No events scheduled for this date.
+        <View style={styles.eventsHeader}>
+          <Text style={[styles.eventsTitle, { color: colors.text }]}>
+            Events for {selectedDate.toLocaleDateString('en-US', {
+              weekday: 'long',
+              month: 'long',
+              day: 'numeric',
+            })}
           </Text>
+        </View>
+        <View style={styles.eventsContent}>
+          <View style={styles.emptyState}>
+            <Text style={[styles.emptyStateText, { color: colors.text + '80' }]}>
+              No events scheduled for this date.
+            </Text>
+            {isParent && (
+              <Button
+                title="+ Add Event"
+                onPress={() => router.push('/create-event')}
+                style={styles.addEventButton}
+              />
+            )}
+          </View>
         </View>
       </View>
     </Screen>
@@ -126,13 +142,24 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingBottom: 16,
+    paddingVertical: 12,
   },
-  header: {
-    flex: 1,
+  householdName: {
+    fontSize: 18,
+    fontWeight: '600',
   },
   todayButton: {
     minWidth: 70,
+  },
+  eventsHeader: {
+    marginBottom: 16,
+  },
+  eventsContent: {
+    flex: 1,
+  },
+  addEventButton: {
+    marginTop: 16,
+    alignSelf: 'center',
   },
   calendarContainer: {
     marginBottom: 20,
